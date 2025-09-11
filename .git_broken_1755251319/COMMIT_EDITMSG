@@ -1,0 +1,10 @@
+Complete academic text processing app with GPT Bypass humanizer
+
+- Fixed UI layout: removed blank Content Source column, expanded Input/Output boxes
+- GPT Bypass interface uses 4 equal columns (Settings/Input/Style/Output)
+- Fixed AI detection consistency using unified endpoint
+- Added 'Humanize Again' button for iterative text improvement
+- Both homework mode and GPT Bypass functionality working perfectly
+- All LLM providers (OpenAI, Anthropic, DeepSeek, Perplexity) integrated
+- Mathematical content processing via Mathpix OCR
+- Document analysis, email integration, file uploads supported

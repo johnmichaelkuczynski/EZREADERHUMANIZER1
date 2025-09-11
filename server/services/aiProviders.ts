@@ -215,7 +215,7 @@ export class AIProviderService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "llama-3.1-sonar-small-128k-online",
+          model: "sonar-pro",
           messages: [
             { role: "user", content: prompt }
           ],
@@ -226,7 +226,9 @@ export class AIProviderService {
       });
 
       if (!response.ok) {
-        throw new Error(`Perplexity API error: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`Perplexity API error ${response.status}: ${errorText}`);
+        throw new Error(`Perplexity API error: ${response.statusText} - ${errorText}`);
       }
 
       const data = await response.json();

@@ -199,25 +199,26 @@ export class AIProviderService {
   }
 
   async rewriteWithPerplexity(params: RewriteParams): Promise<string> {
-    const prompt = buildRewritePrompt({
-      inputText: params.inputText,
-      styleText: params.styleText,
-      contentMixText: params.contentMixText,
-      selectedPresets: params.selectedPresets,
-      customInstructions: params.customInstructions,
+    // Simple test prompt first
+    const simplePrompt = `Rewrite the following text to make it more human-like:\n\n${params.inputText}`;
+    
+    console.log('🔥 PERPLEXITY REQUEST:', {
+      model: "sonar-pro",
+      prompt_length: simplePrompt.length,
+      has_api_key: !!(process.env.PERPLEXITY_API_KEY)
     });
     
     try {
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY || process.env.PERPLEXITY_API_KEY_ENV_VAR || "default_key"}`,
+          'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY || ""}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           model: "sonar-pro",
           messages: [
-            { role: "user", content: prompt }
+            { role: "user", content: simplePrompt }
           ],
           temperature: 0.7,
           max_tokens: 4000,

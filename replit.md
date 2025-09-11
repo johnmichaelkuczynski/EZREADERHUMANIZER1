@@ -104,6 +104,10 @@ npm run dev
 *To be updated based on user interactions and preferences*
 
 ## Recent Changes
+- **2025-09-11**: **CRITICAL FIX**: Perplexity (ZHI 4) GPT Bypass functionality fully restored and working
+- **2025-09-11**: Enhanced Perplexity integration with improved error handling and proper sonar-pro model configuration
+- **2025-09-11**: Added comprehensive debugging infrastructure for all AI provider requests/responses
+- **2025-09-11**: Fixed provider routing issues and deprecated API model references across all system components
 - **2025-01-15**: LLM provider names updated to ZHI branding: Anthropic→ZHI 1, OpenAI→ZHI 2, DeepSeek→ZHI 3, Perplexity→ZHI 4
 - **2025-01-15**: Set Anthropic (ZHI 1) as default provider across all interfaces
 - **2025-01-15**: Added discrete "contact us" link at top of page linking to contact@zhisystems.ai

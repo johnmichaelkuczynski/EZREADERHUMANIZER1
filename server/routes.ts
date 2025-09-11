@@ -841,8 +841,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Process GPT Bypass rewrite request
   app.post('/api/gpt-bypass/rewrite', upload.single('file'), async (req: Request, res: Response) => {
     try {
-      console.log('🔥 BACKEND RECEIVED - Raw Provider:', req.body.provider, 'Raw Body Keys:', Object.keys(req.body));
-      
       const schema = z.object({
         inputText: z.string().optional(),
         styleText: z.string().optional(),
@@ -852,7 +850,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const data = schema.parse(req.body);
-      console.log('🔥 BACKEND PARSED - Provider:', data.provider, 'Input Length:', data.inputText?.length || 0);
       let finalInputText = data.inputText || '';
 
       // Process uploaded file if provided

@@ -118,7 +118,7 @@ ${getDollarSignFreePrompt()}`;
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            model: "llama-3.1-sonar-small-128k-chat",
+            model: "sonar-pro",
             messages,
             temperature: 0.2,
             top_p: 0.9,
@@ -236,7 +236,7 @@ CRITICAL STYLE TRANSFER INSTRUCTIONS:
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: "llama-3.1-sonar-small-128k-chat",
+        model: "sonar-pro",
         messages,
         temperature: 0.2,
         top_p: 0.9,
@@ -278,7 +278,7 @@ export async function solveHomeworkWithPerplexity(assignment: string): Promise<s
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-chat',
+        model: 'sonar-pro',
         messages: [
           {
             role: 'system',
@@ -401,7 +401,7 @@ export async function processChatWithPerplexity(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-chat',
+        model: 'sonar-pro',
         messages: [
           {
             role: 'system',
@@ -442,7 +442,7 @@ export async function detectAIWithPerplexity(text: string): Promise<{ isAI: bool
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: "llama-3.1-sonar-small-128k-chat",
+        model: "sonar-pro",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: text }

@@ -313,11 +313,18 @@ export function GPTBypassInterface({ onSendToInput, onSendToOutput, inputFromMai
       clearInterval(progressInterval);
       setProgress(100);
 
+      console.log('🔥 RESPONSE STATUS:', response.status, response.statusText);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.log('🔥 ERROR RESPONSE:', errorText);
         throw new Error(`Rewrite failed: ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('🔥 RESPONSE DATA:', data);
+      console.log('🔥 REWRITTEN TEXT:', data.rewrittenText);
+      
       setOutputText(data.rewrittenText);
       setCurrentJob(data);
       

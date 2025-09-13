@@ -864,12 +864,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create or update rewrite job
       let job;
+      let textToProcess = finalInputText;
+      
       if (data.reRewrite && data.jobId) {
         const existingJob = await storage.getRewriteJob(data.jobId);
         if (!existingJob) {
           return res.status(404).json({ error: 'Job not found for re-rewrite' });
         }
         job = existingJob;
+        // For recursive rewrite, use the OUTPUT from previous job as input
+        textToProcess = existingJob.outputText || existingJob.inputText;
+        console.log('🔥 RECURSIVE REWRITE - Using previous output as input, length:', textToProcess.length);
       } else {
         job = await storage.createRewriteJob({
           inputText: finalInputText,
@@ -888,7 +893,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const styleSample = data.styleText?.trim() || defaultStyleSample;
 
       // Chunk the text for processing
-      const chunks = textChunker.chunkText(finalInputText);
+      const chunks = textChunker.chunkText(textToProcess);
       
       // Process each chunk
       const rewrittenChunks = [];

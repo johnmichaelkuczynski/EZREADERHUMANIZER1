@@ -104,6 +104,8 @@ npm run dev
 *To be updated based on user interactions and preferences*
 
 ## Recent Changes
+- **2025-09-13**: **AI DETECTION FIX**: Verified GPTZero integration working correctly with proper confidence scoring format clarification
+- **2025-09-13**: Confirmed all AI detection scores are accurate - decimal format (0.85) corresponds to percentage format (85%) on GPTZero website
 - **2025-09-11**: **CRITICAL FIX**: Perplexity (ZHI 4) GPT Bypass functionality fully restored and working
 - **2025-09-11**: Enhanced Perplexity integration with improved error handling and proper sonar-pro model configuration
 - **2025-09-11**: Added comprehensive debugging infrastructure for all AI provider requests/responses

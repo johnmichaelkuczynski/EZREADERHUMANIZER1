@@ -104,6 +104,10 @@ npm run dev
 *To be updated based on user interactions and preferences*
 
 ## Recent Changes
+- **2025-10-22**: **DEFAULT REWRITE LOGIC IMPLEMENTED**: Added comprehensive 7-provision default rewrite system that automatically applies unless user explicitly contradicts
+- **2025-10-22**: New provisions include: 3X length expansion for short texts, completing incomplete essays/stories, preserving edgy/sharp prose, matching style samples authentically
+- **2025-10-22**: User instructions now have HIGHEST PRIORITY and override any conflicting default provisions
+- **2025-10-22**: GPTZero API key configured for accurate AI detection scoring (replacing model-based fallback)
 - **2025-09-13**: **RECURSIVE REWRITE FIX**: Fixed recursive rewrite functionality to properly use previous output as input for next iteration
 - **2025-09-13**: Enhanced recursive debugging with improved logging to track input text changes between iterations
 - **2025-09-13**: **AI DETECTION FIX**: Verified GPTZero integration working correctly with proper confidence scoring format clarification

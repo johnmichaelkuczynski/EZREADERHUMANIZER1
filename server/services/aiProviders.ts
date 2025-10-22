@@ -83,14 +83,45 @@ function expandPresets(selected: string[] = []): string[] {
   return out;
 }
 
-function buildPresetBlock(selectedPresets?: string[], customInstructions?: string): string {
+// Default rewrite logic from uploaded provisions
+const DEFAULT_REWRITE_LOGIC = `CRITICAL REWRITE INSTRUCTIONS (ALWAYS FOLLOW THESE UNLESS USER EXPLICITLY CONTRADICTS):
+
+1. PROVISION 1: ALWAYS FOLLOW THE USER'S INSTRUCTIONS FIRST.
+
+2. PROVISION 2: IF USER GIVES INSTRUCTIONS AND ALSO SELECTS STYLE SAMPLE, FOLLOW INSTRUCTIONS AND WRITE IN THAT SAMPLE'S STYLE.
+
+3. PROVISION 3: DO NOT EVER TELL THE LLM TO "MAKE IT BETTER" OR "MAKE IT SMARTER". Instead, rewrite to match the style sample provided. Not a caricature of that style, but authentically in that style.
+
+4. PROVISION 4: If the input text is less than 2 pages long (approximately 500 words), automatically expand it to 3X the length by adding clarity, logical support, and empirical evidence. UNLESS the user explicitly contradicts this in their instructions.
+   - The rewrite MUST NEVER turn edgy prose into anything less edgy (unless user explicitly says otherwise).
+   - The rewrite MUST NEVER turn sharp, concise prose into anything less sharp/concise (unless user explicitly says otherwise).
+
+5. PROVISION 5: If the user enters NON-FICTION that is NOT a complete essay (just a paragraph or fragment), turn it into a COMPLETE ESSAY by default (unless user explicitly says not to).
+
+6. PROVISION 6: If the user enters FICTION that is NOT a complete story (just a paragraph or fragment), turn it into a COMPLETE STORY by default (unless user explicitly says not to).
+
+7. These provisions apply to rewrite mode, re-rewrite mode, humanize mode (GPT bypass), and rehumanize mode.
+`;
+
+function buildPresetBlock(selectedPresets?: string[], customInstructions?: string, alwaysIncludeDefaults: boolean = true): string {
   const expanded = expandPresets(selectedPresets || []);
   const lines: string[] = [];
+  
+  // Always include default logic unless explicitly disabled
+  // These provisions apply unless user instructions explicitly contradict them
+  if (alwaysIncludeDefaults) {
+    lines.push(DEFAULT_REWRITE_LOGIC);
+  }
+  
   expanded.forEach(name => { lines.push(`- ${PRESET_TEXT[name]}`); });
   const custom = (customInstructions || "").trim();
-  if (custom) lines.push(`- ${custom}`);
+  if (custom) {
+    // User instructions take absolute priority and override any conflicting provisions
+    lines.unshift(`USER INSTRUCTIONS (HIGHEST PRIORITY - OVERRIDES ANY CONFLICTING PROVISIONS BELOW): ${custom}`);
+  }
+  
   if (lines.length === 0) return "";
-  return `Apply ONLY these additional rewrite instructions (no other goals):\n${lines.join("\n")}\n\n`;
+  return `${lines.join("\n\n")}\n\n`;
 }
 
 function buildRewritePrompt(params: {
@@ -102,6 +133,10 @@ function buildRewritePrompt(params: {
 }): string {
   const hasStyle = !!(params.styleText && params.styleText.trim() !== "");
   const hasContent = !!(params.contentMixText && params.contentMixText.trim() !== "");
+  
+  // Always include default logic - it's designed to apply unless user explicitly contradicts
+  const alwaysIncludeDefaults = true;
+  
   const styleSample = hasStyle ? params.styleText! : `DEFAULT STYLE SAMPLE (The Raven Paradox):
 
 Presumably, logically equivalent statements are confirmationally equivalent. In other words, if two statements entail each other, then anything that one confirms the one statement to a given degree also confirms the other statement to that degree. But this actually seems false when consider statement-pairs such as: 
@@ -120,8 +155,8 @@ But the real solution is clear. First of all, it is only principled generalizati
     prompt += `Judiciously integrate relevant ideas, examples, and details from the following content reference to enrich the rewrite:\n"${params.contentMixText}"\n\n`;
   }
 
-  // <<< PRESETS/APPLIED INSTRUCTIONS HERE >>>
-  prompt += buildPresetBlock(params.selectedPresets, params.customInstructions);
+  // Always include default provisions - user instructions override conflicts
+  prompt += buildPresetBlock(params.selectedPresets, params.customInstructions, alwaysIncludeDefaults);
 
   prompt += `Text to rewrite:\n"${params.inputText}"`;
   return prompt;

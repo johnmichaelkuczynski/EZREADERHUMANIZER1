@@ -74,7 +74,7 @@ export async function searchOnline(query: string, maxResults = 5): Promise<{
     };
   } catch (error) {
     console.error("Google search error:", error);
-    throw new Error(`Failed to search online: ${error.message}`);
+    throw new Error(`Failed to search online: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -100,6 +100,6 @@ export async function fetchWebContent(url: string): Promise<string> {
     return text;
   } catch (error) {
     console.error("Content fetching error:", error);
-    throw new Error(`Failed to fetch web content: ${error.message}`);
+    throw new Error(`Failed to fetch web content: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

@@ -34,6 +34,7 @@ interface ContentSourceBoxProps {
   onFileUpload: (file: File) => Promise<void>;
   onMultipleFileUpload?: (files: File[]) => Promise<void>;
   contentSourceFileRef: React.RefObject<HTMLInputElement>;
+  onAddToDialogue?: (content: string) => void;
 }
 
 export function ContentSourceBox({
@@ -46,7 +47,8 @@ export function ContentSourceBox({
   onUseStyleSourceChange,
   onFileUpload,
   onMultipleFileUpload,
-  contentSourceFileRef
+  contentSourceFileRef,
+  onAddToDialogue
 }: ContentSourceBoxProps) {
   const [activeTab, setActiveTab] = useState<ContentSourceTab['id']>('manual');
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
@@ -162,6 +164,22 @@ export function ContentSourceBox({
       const result = await searchOnline(searchQuery);
       setSearchResults(result.results);
       
+      // Format results with clickable hyperlinks for dialogue box
+      if (result.results && result.results.length > 0 && onAddToDialogue) {
+        const formattedResults = result.results.map((item, index) => 
+          `**[${index + 1}] ${item.title}**\n<a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.url}</a>\n${item.snippet}\n`
+        ).join('\n');
+        
+        const dialogueContent = `**Search Results for "${searchQuery}":**\n\n${formattedResults}`;
+        onAddToDialogue(dialogueContent);
+        
+        toast({
+          title: "Search complete",
+          description: `Found ${result.results.length} results. Check the Dialogue box.`,
+        });
+      }
+      
+      // Also put in content source for reference
       if (result.content) {
         onTextChange(result.content);
       }
@@ -341,18 +359,21 @@ export function ContentSourceBox({
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            <div className="flex gap-2">
-              <Input
+            <div className="flex flex-col gap-2">
+              <Textarea
                 placeholder="Enter search query..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
                     handleSearch();
                   }
                 }}
+                className="min-h-[120px] resize-y"
+                data-testid="input-search-query"
               />
-              <Button onClick={handleSearch} disabled={isSearching}>
+              <Button onClick={handleSearch} disabled={isSearching} data-testid="button-search">
                 {isSearching ? 'Searching...' : 'Search'}
               </Button>
             </div>

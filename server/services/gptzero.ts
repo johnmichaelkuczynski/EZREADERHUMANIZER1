@@ -23,11 +23,17 @@ export async function detectAIWithGPTZero(text: string): Promise<{
   details: string;
 }> {
   try {
+    console.log("=== GPTZero AI Detection Started ===");
+    console.log("API Key present:", !!process.env.GPTZERO_API_KEY);
+    console.log("Text length:", text.length);
+    
     // Truncate text to fit GPTZero's 50,000 character limit
     const maxLength = 45000; // Leave some buffer
     const truncatedText = text.length > maxLength 
       ? text.substring(0, maxLength) + "\n\n[Text truncated for analysis]"
       : text;
+    
+    console.log("Calling GPTZero API at:", GPTZERO_API_URL);
     
     const response = await fetch(GPTZERO_API_URL, {
       method: 'POST',
@@ -42,15 +48,20 @@ export async function detectAIWithGPTZero(text: string): Promise<{
       })
     });
     
+    console.log("GPTZero Response Status:", response.status, response.statusText);
+    
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("GPTZero API Error Response:", errorText);
       throw new Error(`GPTZero API error: ${response.status} - ${errorText}`);
     }
     
     const data = await response.json() as GPTZeroResponse;
+    console.log("GPTZero API Response:", JSON.stringify(data, null, 2));
     
     // Calculate confidence from GPTZero response
     const confidence = data.documents[0]?.completely_generated_prob || 0;
+    console.log("Extracted confidence score:", confidence);
     
     // Build detailed result
     const burstiness = data.documents[0]?.overall_burstiness || 0;
@@ -58,11 +69,16 @@ export async function detectAIWithGPTZero(text: string): Promise<{
       `Paragraph ${i+1}: ${Math.round((p.generated_prob || 0) * 100)}% AI probability, Perplexity: ${p.perplexity?.toFixed(2) || 'N/A'}, Burstiness: ${p.burstiness?.toFixed(2) || 'N/A'}`
     ).join("\n") || "No paragraph analysis available";
     
-    return {
+    const result = {
       isAI: data.isGenerated,
       confidence,
       details: `Overall AI probability: ${Math.round(confidence * 100)}%\nOverall burstiness: ${burstiness?.toFixed(2) || 'N/A'}\n\n${paragraphAnalysis}`
     };
+    
+    console.log("=== GPTZero AI Detection Success ===");
+    console.log("Result:", result);
+    
+    return result;
   } catch (error) {
     console.error("GPTZero detection error:", error);
     

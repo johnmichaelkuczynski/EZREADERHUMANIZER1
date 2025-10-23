@@ -250,17 +250,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Detect AI-generated content
   app.post('/api/detect-ai', async (req: Request, res: Response) => {
     try {
+      console.log("\n>>> /api/detect-ai REQUEST RECEIVED <<<");
       const { text, llmProvider } = detectAiSchema.parse(req.body);
+      console.log("Text length:", text.length);
+      console.log("LLM Provider for fallback:", llmProvider);
       
       // Try GPTZero first, fall back to model-based detection
       try {
+        console.log("Attempting GPTZero detection...");
         const result = await detectAIWithGPTZero(text);
+        console.log("✓ GPTZero detection succeeded");
         res.json(result);
       } catch (gptzeroError) {
-        console.log("GPTZero failed, falling back to model-based detection:", gptzeroError instanceof Error ? gptzeroError.message : 'GPTZero error');
+        console.log("✗ GPTZero failed, falling back to model-based detection:", gptzeroError instanceof Error ? gptzeroError.message : 'GPTZero error');
         
         // Fall back to selected LLM provider for detection
         let result;
+        console.log(`Using fallback provider: ${llmProvider}`);
         switch (llmProvider) {
           case 'anthropic':
             result = await detectAIWithAnthropic(text);
@@ -274,6 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           default:
             result = await detectAIWithOpenAI(text);
         }
+        console.log("Fallback detection result:", result);
         res.json(result);
       }
     } catch (error: unknown) {

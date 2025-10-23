@@ -24,6 +24,7 @@ import {
   DialogFooter 
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { searchOnline, extractTextFromImage } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -138,12 +139,29 @@ export default function Home() {
       setIsSearching(true);
       
       const result = await searchOnline(searchQuery);
-      setInputText(prev => prev ? `${prev}\n\n${result.content}` : result.content);
+      
+      // Format results with clickable hyperlinks for dialogue box
+      if (result.results && result.results.length > 0) {
+        const formattedResults = result.results.map((item, index) => 
+          `**[${index + 1}] ${item.title}**\n<a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.url}</a>\n${item.snippet}\n`
+        ).join('\n');
+        
+        const dialogueContent = `**Search Results for "${searchQuery}":**\n\n${formattedResults}`;
+        
+        // Add results to dialogue box as assistant message
+        const assistantMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant' as const,
+          content: dialogueContent,
+          timestamp: new Date()
+        };
+        setDialogueMessages(prev => [...prev, assistantMessage]);
+      }
       
       setSearchDialogOpen(false);
       toast({
         title: "Search complete",
-        description: `Found ${result.results.length} results`,
+        description: `Found ${result.results.length} results. Check the Dialogue box.`,
       });
     } catch (error: any) {
       console.error('Error searching online:', error);
@@ -603,27 +621,29 @@ export default function Home() {
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Input
+            <div className="flex flex-col gap-2">
+              <div className="relative">
+                <Textarea
                   placeholder="Enter search query..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
                       handleSearch();
                     }
                   }}
-                  className="pr-10"
+                  className="min-h-[120px] resize-y pr-10"
+                  data-testid="input-search-query"
                 />
-                <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                <div className="absolute right-2 top-2">
                   <VoiceInput
                     onTranscription={(text) => setSearchQuery(searchQuery ? `${searchQuery} ${text}` : text)}
                     className="h-8 w-8"
                   />
                 </div>
               </div>
-              <Button onClick={handleSearch} disabled={isSearching}>
+              <Button onClick={handleSearch} disabled={isSearching} data-testid="button-search">
                 {isSearching ? 'Searching...' : 'Search'}
               </Button>
             </div>

@@ -38,3 +38,4 @@ externalPort = 80
 [agent]
 integrations = ["javascript_object_storage:1.0.0"]
 stack = "FULLSTACK_JS"
+expertMode = true

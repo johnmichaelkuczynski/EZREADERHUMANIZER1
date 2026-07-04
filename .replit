@@ -36,6 +36,6 @@ localPort = 5000
 externalPort = 80
 
 [agent]
-integrations = ["javascript_object_storage:1.0.0"]
+integrations = ["javascript_object_storage:1.0.0", "javascript_log_in_with_replit:2.0.0"]
 stack = "FULLSTACK_JS"
 expertMode = true

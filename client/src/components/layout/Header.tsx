@@ -32,7 +32,7 @@ export function Header({ llmProvider, onLLMProviderChange }: HeaderProps) {
     <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
       <div className="container mx-auto px-4 py-1 flex justify-end">
         <a 
-          href="mailto:contact@zhisystems.ai" 
+          href="mailto:ZHI@ZHISYSTEMS.ORG" 
           className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
         >
           contact us

@@ -1,5 +1,5 @@
 import mammoth from 'mammoth';
-import { jsPDF } from 'jspdf';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { saveAs } from 'file-saver';
 
@@ -118,33 +118,69 @@ async function extractTextFromTXT(file: File): Promise<string> {
   return await file.text();
 }
 
-// Export text as PDF
-export function exportToPDF(text: string, filename = 'document.pdf'): void {
-  const doc = new jsPDF();
-  
-  // Split text into lines to fit on the page
-  const pageWidth = doc.internal.pageSize.getWidth() - 20;
-  const fontSize = 12;
-  doc.setFontSize(fontSize);
-  
-  const lines = doc.splitTextToSize(text, pageWidth);
-  const lineHeight = fontSize * 0.5;
-  
-  let y = 20;
-  let currentPage = 1;
-  
-  for (let i = 0; i < lines.length; i++) {
-    if (y > 270) {
-      doc.addPage();
-      currentPage++;
-      y = 20;
+// Wrap a single line of text so it fits within maxWidth (in points) for the given font/size
+function wrapText(
+  text: string,
+  font: import('pdf-lib').PDFFont,
+  fontSize: number,
+  maxWidth: number
+): string[] {
+  const wrapped: string[] = [];
+  const paragraphs = text.split('\n');
+
+  for (const paragraph of paragraphs) {
+    if (paragraph.trim() === '') {
+      wrapped.push('');
+      continue;
     }
-    
-    doc.text(lines[i], 10, y);
-    y += lineHeight;
+
+    const words = paragraph.split(' ');
+    let current = '';
+
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word;
+      if (font.widthOfTextAtSize(candidate, fontSize) <= maxWidth) {
+        current = candidate;
+      } else {
+        if (current) wrapped.push(current);
+        current = word;
+      }
+    }
+    if (current) wrapped.push(current);
   }
-  
-  doc.save(filename);
+
+  return wrapped;
+}
+
+// Export text as PDF
+export async function exportToPDF(text: string, filename = 'document.pdf'): Promise<void> {
+  const pdfDoc = await PDFDocument.create();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  const fontSize = 12;
+  const lineHeight = fontSize * 1.2;
+  const margin = 50;
+
+  let page = pdfDoc.addPage();
+  let { width, height } = page.getSize();
+  const maxWidth = width - margin * 2;
+
+  const lines = wrapText(text, font, fontSize, maxWidth);
+
+  let y = height - margin;
+  for (const line of lines) {
+    if (y < margin) {
+      page = pdfDoc.addPage();
+      ({ width, height } = page.getSize());
+      y = height - margin;
+    }
+    page.drawText(line, { x: margin, y, size: fontSize, font });
+    y -= lineHeight;
+  }
+
+  const pdfBytes = await pdfDoc.save();
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  saveAs(blob, filename);
 }
 
 // Export text as DOCX using proper Word document structure

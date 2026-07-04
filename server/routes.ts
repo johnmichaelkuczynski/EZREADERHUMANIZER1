@@ -1001,16 +1001,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { content, filename, format } = schema.parse(req.body);
 
       if (format === 'pdf') {
-        // Use existing PDF export functionality
-        const PDFDocument = (await import('jspdf')).jsPDF;
-        const doc = new PDFDocument();
-        
-        // Split text into lines and add to PDF
-        const lines = doc.splitTextToSize(content, 180);
-        doc.text(lines, 15, 15);
-        
-        const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
-        
+        // Generate PDF using pdf-lib
+        const { PDFDocument, StandardFonts } = await import('pdf-lib');
+        const pdfDoc = await PDFDocument.create();
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+        const fontSize = 12;
+        const lineHeight = fontSize * 1.2;
+        const margin = 50;
+
+        let page = pdfDoc.addPage();
+        let { width, height } = page.getSize();
+        const maxWidth = width - margin * 2;
+
+        // Wrap content to fit page width
+        const wrapped: string[] = [];
+        for (const paragraph of content.split('\n')) {
+          if (paragraph.trim() === '') {
+            wrapped.push('');
+            continue;
+          }
+          let current = '';
+          for (const word of paragraph.split(' ')) {
+            const candidate = current ? `${current} ${word}` : word;
+            if (font.widthOfTextAtSize(candidate, fontSize) <= maxWidth) {
+              current = candidate;
+            } else {
+              if (current) wrapped.push(current);
+              current = word;
+            }
+          }
+          if (current) wrapped.push(current);
+        }
+
+        let y = height - margin;
+        for (const line of wrapped) {
+          if (y < margin) {
+            page = pdfDoc.addPage();
+            ({ width, height } = page.getSize());
+            y = height - margin;
+          }
+          page.drawText(line, { x: margin, y, size: fontSize, font });
+          y -= lineHeight;
+        }
+
+        const pdfBuffer = Buffer.from(await pdfDoc.save());
+
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
         res.send(pdfBuffer);

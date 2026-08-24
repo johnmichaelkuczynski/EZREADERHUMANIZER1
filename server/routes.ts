@@ -23,6 +23,11 @@ import { sendDocumentEmail } from "./services/sendgrid";
 import { extractTextFromPDF } from "./services/pdf-processor";
 import { extractTextFromImageWithMathpix } from "./services/mathpix";
 import { processMathPDFWithAzure, processMathImageWithAzure, enhanceMathFormatting } from "./services/azure-math";
+import { db } from "./db";
+import { visitors } from "@shared/schema";
+import { count } from "drizzle-orm";
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
+import { getSiteOrigin } from "./site-url";
 
 
 
@@ -68,6 +73,56 @@ const upload = multer({
   }
 });
 
+const VISITOR_COOKIE = "ez_visitor_id";
+const VISITOR_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 2;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const BOT_USER_AGENT_PATTERN = /bot|crawler|spider|slurp|bingpreview|facebookexternalhit|googleother|headless/i;
+
+function readCookie(cookieHeader: string | undefined, name: string): string | undefined {
+  if (!cookieHeader) return undefined;
+
+  for (const cookie of cookieHeader.split(";")) {
+    const [key, ...valueParts] = cookie.trim().split("=");
+    if (key === name) {
+      try {
+        return decodeURIComponent(valueParts.join("="));
+      } catch {
+        return undefined;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function isSecureRequest(req: Request): boolean {
+  return req.secure || process.env.NODE_ENV === "production";
+}
+
+function getVisitorSecret(): string | null {
+  return process.env.SESSION_SECRET || null;
+}
+
+function signVisitorId(visitorId: string, secret: string): string {
+  return createHmac("sha256", secret).update(visitorId).digest("base64url");
+}
+
+function readSignedVisitorId(req: Request, secret: string): string | undefined {
+  const cookieValue = readCookie(req.get("cookie"), VISITOR_COOKIE);
+  if (!cookieValue) return undefined;
+
+  const [visitorId, signature] = cookieValue.split(".");
+  if (!visitorId || !signature || !UUID_PATTERN.test(visitorId)) return undefined;
+
+  const expected = Buffer.from(signVisitorId(visitorId, secret));
+  const received = Buffer.from(signature);
+  if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
+    return undefined;
+  }
+
+  return visitorId;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
   const httpServer = createServer(app);
@@ -75,6 +130,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
+  });
+
+  app.get('/robots.txt', (req: Request, res: Response) => {
+    const origin = getSiteOrigin(req);
+    res
+      .type('text/plain')
+      .set('Cache-Control', 'public, max-age=3600')
+      .send([
+        'User-agent: *',
+        'Allow: /',
+        'Disallow: /settings',
+        'Disallow: /api/',
+        '',
+        `Sitemap: ${origin}/sitemap.xml`,
+      ].join('\n'));
+  });
+
+  app.get('/sitemap.xml', (req: Request, res: Response) => {
+    const origin = getSiteOrigin(req);
+    const urls = ['/', '/gpt-bypass'];
+    const lastModified = new Date().toISOString().split('T')[0];
+    const entries = urls.map(path => [
+      '  <url>',
+      `    <loc>${origin}${path}</loc>`,
+      `    <lastmod>${lastModified}</lastmod>`,
+      `    <changefreq>${path === '/' ? 'weekly' : 'monthly'}</changefreq>`,
+      `    <priority>${path === '/' ? '1.0' : '0.8'}</priority>`,
+      '  </url>',
+    ].join('\n')).join('\n');
+
+    res
+      .type('application/xml')
+      .set('Cache-Control', 'public, max-age=3600')
+      .send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>`);
+  });
+
+  app.get('/api/visitors/count', async (req: Request, res: Response) => {
+    try {
+      res.set({
+        'Cache-Control': 'no-store, max-age=0',
+        'Vary': 'Cookie, User-Agent',
+      });
+
+      const userAgent = req.get('user-agent') || '';
+      const isBot = BOT_USER_AGENT_PATTERN.test(userAgent);
+      const visitorSecret = getVisitorSecret();
+      if (!visitorSecret) {
+        return res.status(503).json({ error: 'Visitor count is temporarily unavailable.' });
+      }
+
+      const existingVisitorId = readSignedVisitorId(req, visitorSecret);
+      const visitorId = existingVisitorId || (!isBot ? randomUUID() : undefined);
+
+      if (!isBot && visitorId) {
+        await db
+          .insert(visitors)
+          .values({ visitorId })
+          .onConflictDoNothing({ target: visitors.visitorId });
+
+        if (!existingVisitorId) {
+          const signedVisitorId = `${visitorId}.${signVisitorId(visitorId, visitorSecret)}`;
+          const cookieParts = [
+            `${VISITOR_COOKIE}=${encodeURIComponent(signedVisitorId)}`,
+            'Path=/',
+            `Max-Age=${VISITOR_COOKIE_MAX_AGE_SECONDS}`,
+            'HttpOnly',
+            'SameSite=Lax',
+          ];
+
+          if (isSecureRequest(req)) {
+            cookieParts.push('Secure');
+          }
+
+          res.append('Set-Cookie', cookieParts.join('; '));
+        }
+      }
+
+      const [result] = await db.select({ value: count() }).from(visitors);
+      res.json({ count: Number(result?.value || 0) });
+    } catch (error) {
+      console.error('Error tracking visitor:', error);
+      res.status(503).json({ error: 'Visitor count is temporarily unavailable.' });
+    }
   });
 
   // SEPARATE HOMEWORK ENDPOINT - BYPASSES ALL REWRITE LOGIC

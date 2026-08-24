@@ -1,20 +1,61 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'wouter';
 
 export function Footer() {
+  const [visitorCount, setVisitorCount] = useState<number | null>(null);
+  const [visitorCountUnavailable, setVisitorCountUnavailable] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch('/api/visitors/count', {
+      credentials: 'include',
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Visitor count unavailable');
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (typeof data.count === 'number') {
+          setVisitorCount(data.count);
+        }
+      })
+      .catch(error => {
+        if (error instanceof Error && error.name !== 'AbortError') {
+          console.error('Unable to load visitor count:', error);
+          setVisitorCountUnavailable(true);
+        }
+      });
+
+    return () => controller.abort();
+  }, []);
+
   return (
     <footer className="bg-white border-t border-slate-200 py-4 mt-6">
       <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row justify-between items-center text-sm text-slate-500">
+        <div className="flex flex-col gap-3 text-sm text-slate-500 md:flex-row md:justify-between md:items-center">
           <div>© {new Date().getFullYear()} EZ Reader. All rights reserved.</div>
+          <div
+            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-medium text-slate-600"
+            aria-live="polite"
+            data-testid="visitor-count"
+          >
+            {visitorCountUnavailable
+              ? 'Visitors unavailable'
+              : visitorCount === null
+              ? 'Visitors: loading'
+              : `${visitorCount.toLocaleString()} unique ${visitorCount === 1 ? 'visitor' : 'visitors'}`}
+          </div>
           <div className="flex gap-4 mt-2 md:mt-0">
-            <Link href="#" className="hover:text-primary transition-colors">
-              Terms
+            <Link href="/" className="hover:text-primary transition-colors">
+              Home
             </Link>
-            <Link href="#" className="hover:text-primary transition-colors">
-              Privacy
-            </Link>
-            <Link href="#" className="hover:text-primary transition-colors">
-              Help
+            <Link href="/gpt-bypass" className="hover:text-primary transition-colors">
+              AI Text Humanizer
             </Link>
           </div>
         </div>

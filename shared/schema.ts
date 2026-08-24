@@ -36,6 +36,14 @@ export const rewriteJobs = pgTable("rewrite_jobs", {
   createdAt: timestamp("created_at").default(sql`now()`),
 });
 
+export const visitors = pgTable("visitors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  visitorId: text("visitor_id").notNull().unique(),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Visitor = typeof visitors.$inferSelect;
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,

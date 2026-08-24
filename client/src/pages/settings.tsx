@@ -4,6 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { SEOHead } from '@/components/seo/SEOHead';
 
 export default function Settings() {
   const [openaiKey, setOpenaiKey] = useState('');
@@ -59,6 +60,12 @@ export default function Settings() {
 
   return (
     <div className="container mx-auto py-10">
+      <SEOHead
+        title="Settings — EZ Reader"
+        description="Private API provider settings for EZ Reader."
+        path="/settings"
+        noIndex
+      />
       <h1 className="text-3xl font-bold mb-6">Settings</h1>
       
       <Card className="mb-6">

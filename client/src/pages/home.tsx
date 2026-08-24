@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { searchOnline, extractTextFromImage } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { SEOHead } from "@/components/seo/SEOHead";
 
 export default function Home() {
   const {
@@ -343,12 +344,49 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SEOHead
+        title="EZ Reader — AI Document Rewriter, Humanizer & Study Tool"
+        description="Rewrite, humanize, summarize, analyze, and study text, PDFs, Word documents, images, and audio with EZ Reader's all-in-one AI document workspace."
+        path="/"
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "EZ Reader",
+          applicationCategory: "EducationalApplication",
+          operatingSystem: "Web",
+          description: "An AI document workspace for rewriting, humanizing, summarizing, document analysis, homework support, file extraction, audio transcription, and writing assistance.",
+          offers: {
+            "@type": "Offer",
+            price: "0",
+            priceCurrency: "USD"
+          },
+          featureList: [
+            "AI document rewriting",
+            "Text humanization",
+            "Document summarization",
+            "PDF and Word file processing",
+            "Image text extraction",
+            "Audio transcription",
+            "AI writing detection",
+            "Homework and study assistance"
+          ]
+        }}
+      />
       <Header 
         llmProvider={llmProvider}
         onLLMProviderChange={setLLMProvider}
       />
       
       <main className="flex-1 container mx-auto px-4 py-6">
+        <section className="mb-6 rounded-lg border border-slate-200 bg-slate-50 px-5 py-4" aria-labelledby="ez-reader-overview">
+          <h2 id="ez-reader-overview" className="text-xl font-semibold text-slate-900">
+            AI document rewriting, analysis, and study tools in one workspace
+          </h2>
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
+            EZ Reader helps you rewrite and humanize text, summarize long documents, process PDFs and Word files,
+            extract text from images, transcribe audio, discuss source material, and work through homework or study questions.
+          </p>
+        </section>
         {/* Mobile LLM Selector - shown only on small screens */}
         <div className="mb-4 flex items-center md:hidden">
           <span className="text-sm text-slate-500">Powered by</span>
@@ -595,6 +633,36 @@ export default function Home() {
                 outputFromMain={outputText}
               />
             </div>
+
+            <section className="mt-12 grid gap-6 rounded-xl border border-slate-200 bg-white p-6 md:grid-cols-3" aria-labelledby="how-ez-reader-helps">
+              <div className="md:col-span-3">
+                <h2 id="how-ez-reader-helps" className="text-2xl font-semibold text-slate-900">
+                  A flexible AI writing and document assistant
+                </h2>
+                <p className="mt-2 max-w-4xl text-slate-600">
+                  Use the same workspace for quick rewrites, detailed document analysis, writing-style adaptation,
+                  research conversations, and study support without moving content between separate tools.
+                </p>
+              </div>
+              <article>
+                <h3 className="font-semibold text-slate-900">Rewrite and humanize writing</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Refine clarity, tone, structure, and flow while preserving the original meaning and your chosen writing style.
+                </p>
+              </article>
+              <article>
+                <h3 className="font-semibold text-slate-900">Process documents and media</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Work with pasted text, PDFs, Word documents, images, voice recordings, and uploaded audio.
+                </p>
+              </article>
+              <article>
+                <h3 className="font-semibold text-slate-900">Study and discuss source material</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Ask questions, solve assignments, search for supporting material, and keep the conversation connected to your document.
+                </p>
+              </article>
+            </section>
           </div>
         </div>
       </main>

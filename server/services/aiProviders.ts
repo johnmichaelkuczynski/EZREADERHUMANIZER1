@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import Anthropic from '@anthropic-ai/sdk';
+import { withProviderFallback, type AIProvider } from '../llm/provider-fallback';
 
 /*
 <important_code_snippet_instructions>
@@ -325,6 +326,12 @@ export class AIProviderService {
   }
 
   async rewrite(provider: string, params: RewriteParams): Promise<string> {
+    return withProviderFallback(provider, 'GPT Bypass rewrite', fallbackProvider =>
+      this.rewriteWithProvider(fallbackProvider, params)
+    );
+  }
+
+  private rewriteWithProvider(provider: AIProvider, params: RewriteParams): Promise<string> {
     switch (provider) {
       case 'openai':
         return this.rewriteWithOpenAI(params);
@@ -334,8 +341,6 @@ export class AIProviderService {
         return this.rewriteWithPerplexity(params);
       case 'deepseek':
         return this.rewriteWithDeepSeek(params);
-      default:
-        throw new Error(`Unsupported provider: ${provider}`);
     }
   }
 

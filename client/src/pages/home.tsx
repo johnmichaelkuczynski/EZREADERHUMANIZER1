@@ -536,7 +536,13 @@ export default function Home() {
                   });
 
                   if (!response.ok) {
-                    throw new Error(`API Error: ${response.statusText}`);
+                    const errorData = await response.json().catch(() => null);
+                    throw new Error(
+                      errorData?.details ||
+                      errorData?.error ||
+                      errorData?.message ||
+                      `API Error: ${response.statusText}`
+                    );
                   }
 
                   const data = await response.json();
@@ -550,12 +556,16 @@ export default function Home() {
 
                 } catch (error: any) {
                   console.error('Error processing dialogue:', error);
-                  
-                  setDialogueMessages(prev => prev.map(msg => 
-                    msg.id === assistantMessageId
-                      ? { ...msg, content: `Sorry, I encountered an error: ${error?.message || 'Unknown error'}` }
-                      : msg
-                  ));
+
+                  setDialogueMessages(prev =>
+                    error instanceof Error && error.message.includes('All AI providers are temporarily unavailable')
+                      ? prev.filter(msg => msg.id !== assistantMessageId)
+                      : prev.map(msg =>
+                          msg.id === assistantMessageId
+                            ? { ...msg, content: `Sorry, I encountered an error: ${error?.message || 'Unknown error'}` }
+                            : msg
+                        )
+                  );
                 }
               }}
               onProcessSpecialCommand={() => {}}

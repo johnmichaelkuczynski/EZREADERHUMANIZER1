@@ -306,7 +306,13 @@ export function GPTBypassInterface({ onSendToInput, onSendToOutput, inputFromMai
       setProgress(100);
 
       if (!response.ok) {
-        throw new Error(`Rewrite failed: ${response.statusText}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(
+          errorData?.details ||
+          errorData?.error ||
+          errorData?.message ||
+          `Rewrite failed: ${response.statusText}`
+        );
       }
 
       const data = await response.json();
@@ -324,11 +330,13 @@ export function GPTBypassInterface({ onSendToInput, onSendToOutput, inputFromMai
       });
     } catch (error) {
       console.error('Rewrite error:', error);
-      toast({
-        title: "Rewrite failed",
-        description: error instanceof Error ? error.message : "Failed to humanize text",
-        variant: "destructive",
-      });
+      if (!(error instanceof Error && error.message.includes('All AI providers are temporarily unavailable'))) {
+        toast({
+          title: "Rewrite failed",
+          description: error instanceof Error ? error.message : "Failed to humanize text",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsProcessing(false);
       setProgress(0);

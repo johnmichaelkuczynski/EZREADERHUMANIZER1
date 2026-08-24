@@ -16,6 +16,7 @@ import { processTextWithOpenAI, detectAIWithOpenAI, transcribeAudio, solveHomewo
 import { processTextWithAnthropic, detectAIWithAnthropic, solveHomeworkWithAnthropic, processChatWithAnthropic } from "./llm/anthropic";
 import { processTextWithPerplexity, detectAIWithPerplexity, solveHomeworkWithPerplexity, processChatWithPerplexity } from "./llm/perplexity";
 import { processTextWithDeepSeek, detectAIWithDeepSeek, solveHomeworkWithDeepSeek, processChatWithDeepSeek } from "./llm/deepseek";
+import { withProviderFallback } from "./llm/provider-fallback";
 import { detectAIWithGPTZero } from "./services/gptzero";
 import { searchOnline, fetchWebContent } from "./services/google";
 import { sendDocumentEmail } from "./services/sendgrid";
@@ -81,24 +82,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { assignment, llmProvider = 'anthropic' } = req.body;
       
-      let solution: string;
-      
-      switch (llmProvider) {
-        case 'openai':
-          solution = await solveHomeworkWithOpenAI(assignment);
-          break;
-        case 'anthropic':
-          solution = await solveHomeworkWithAnthropic(assignment);
-          break;
-        case 'perplexity':
-          solution = await solveHomeworkWithPerplexity(assignment);
-          break;
-        case 'deepseek':
-          solution = await solveHomeworkWithDeepSeek(assignment);
-          break;
-        default:
-          throw new Error(`Unsupported LLM provider: ${llmProvider}`);
-      }
+      const solution = await withProviderFallback(llmProvider, 'homework solving', provider => {
+        switch (provider) {
+          case 'openai':
+            return solveHomeworkWithOpenAI(assignment);
+          case 'anthropic':
+            return solveHomeworkWithAnthropic(assignment);
+          case 'perplexity':
+            return solveHomeworkWithPerplexity(assignment);
+          case 'deepseek':
+            return solveHomeworkWithDeepSeek(assignment);
+        }
+      });
       
       res.json({ result: solution });
     } catch (error: any) {
@@ -115,55 +110,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = processTextSchema.parse(req.body);
       
-      // Select LLM provider based on user choice
-      let processedText: string;
-      
-      switch (data.llmProvider) {
-        case 'openai':
-          processedText = await processTextWithOpenAI({
-            text: data.inputText,
-            instructions: data.instructions,
-            contentSource: data.contentSource,
-            styleSource: data.styleSource,
-            useContentSource: data.useContentSource,
-            useStyleSource: data.useStyleSource,
-            examMode: data.examMode
-          });
-          break;
-        case 'anthropic':
-          processedText = await processTextWithAnthropic({
-            text: data.inputText,
-            instructions: data.instructions,
-            contentSource: data.contentSource,
-            styleSource: data.styleSource,
-            useContentSource: data.useContentSource,
-            useStyleSource: data.useStyleSource,
-            examMode: data.examMode
-          });
-          break;
-        case 'perplexity':
-          processedText = await processTextWithPerplexity({
-            text: data.inputText,
-            instructions: data.instructions,
-            contentSource: data.contentSource,
-            styleSource: data.styleSource,
-            useContentSource: data.useContentSource,
-            useStyleSource: data.useStyleSource,
-            examMode: data.examMode
-          });
-          break;
-        case 'deepseek':
-          processedText = await processTextWithDeepSeek(
-            data.inputText,
-            data.instructions,
-            data.useContentSource ? data.contentSource : undefined,
-            data.useStyleSource ? data.styleSource : undefined,
-            data.examMode
-          );
-          break;
-        default:
-          throw new Error('Invalid LLM provider');
-      }
+      const processedText = await withProviderFallback(data.llmProvider, 'text processing', provider => {
+        const options = {
+          text: data.inputText,
+          instructions: data.instructions,
+          contentSource: data.contentSource,
+          styleSource: data.styleSource,
+          useContentSource: data.useContentSource,
+          useStyleSource: data.useStyleSource,
+          examMode: data.examMode
+        };
+
+        switch (provider) {
+          case 'openai':
+            return processTextWithOpenAI(options);
+          case 'anthropic':
+            return processTextWithAnthropic(options);
+          case 'perplexity':
+            return processTextWithPerplexity(options);
+          case 'deepseek':
+            return processTextWithDeepSeek(
+              data.inputText,
+              data.instructions,
+              data.useContentSource ? data.contentSource : undefined,
+              data.useStyleSource ? data.styleSource : undefined,
+              data.examMode
+            );
+        }
+      });
       
       // Return LLM output exactly as received - NO FILTERING OR PROCESSING
       res.json({ result: processedText });
@@ -187,49 +161,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const data = schema.parse(req.body);
       
-      // Select LLM provider based on user choice
-      let processedText: string;
-      
       // Add context about this being part of a larger document
       const chunkContext = `[Processing chunk ${data.chunkIndex + 1} of ${data.totalChunks}]\n`;
       const enhancedInstructions = chunkContext + data.instructions + 
         "\nNote: This is part of a larger document, maintain consistency with previous chunks.";
-      
-      switch (data.llmProvider) {
-        case 'openai':
-          processedText = await processTextWithOpenAI({
-            text: data.inputText,
-            instructions: enhancedInstructions,
-            contentSource: data.contentSource,
-            useContentSource: data.useContentSource
-          });
-          break;
-        case 'anthropic':
-          processedText = await processTextWithAnthropic({
-            text: data.inputText,
-            instructions: enhancedInstructions,
-            contentSource: data.contentSource,
-            useContentSource: data.useContentSource
-          });
-          break;
-        case 'perplexity':
-          processedText = await processTextWithPerplexity({
-            text: data.inputText,
-            instructions: enhancedInstructions,
-            contentSource: data.contentSource,
-            useContentSource: data.useContentSource
-          });
-          break;
-        case 'deepseek':
-          processedText = await processTextWithDeepSeek(
-            data.inputText,
-            enhancedInstructions,
-            data.useContentSource ? data.contentSource : undefined
-          );
-          break;
-        default:
-          throw new Error('Invalid LLM provider');
-      }
+
+      const processedText = await withProviderFallback(data.llmProvider, 'chunk processing', provider => {
+        const options = {
+          text: data.inputText,
+          instructions: enhancedInstructions,
+          contentSource: data.contentSource,
+          useContentSource: data.useContentSource
+        };
+
+        switch (provider) {
+          case 'openai':
+            return processTextWithOpenAI(options);
+          case 'anthropic':
+            return processTextWithAnthropic(options);
+          case 'perplexity':
+            return processTextWithPerplexity(options);
+          case 'deepseek':
+            return processTextWithDeepSeek(
+              data.inputText,
+              enhancedInstructions,
+              data.useContentSource ? data.contentSource : undefined
+            );
+        }
+      });
       
       // Return LLM output exactly as received - NO FILTERING OR PROCESSING
       res.json({ 
@@ -251,36 +210,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/detect-ai', async (req: Request, res: Response) => {
     try {
       console.log("\n>>> /api/detect-ai REQUEST RECEIVED <<<");
-      const { text, llmProvider } = detectAiSchema.parse(req.body);
+      const { text, llmProvider = 'anthropic' } = detectAiSchema.parse(req.body);
       console.log("Text length:", text.length);
-      console.log("LLM Provider for fallback:", llmProvider);
-      
-      // Try GPTZero first, fall back to model-based detection
+      console.log("Selected LLM provider:", llmProvider);
+
       try {
-        console.log("Attempting GPTZero detection...");
-        const result = await detectAIWithGPTZero(text);
-        console.log("✓ GPTZero detection succeeded");
+        const result = await withProviderFallback(llmProvider, 'AI detection', provider => {
+          switch (provider) {
+            case 'openai':
+              return detectAIWithOpenAI(text);
+            case 'anthropic':
+              return detectAIWithAnthropic(text);
+            case 'perplexity':
+              return detectAIWithPerplexity(text);
+            case 'deepseek':
+              return detectAIWithDeepSeek(text);
+          }
+        });
+
         res.json(result);
-      } catch (gptzeroError) {
-        console.log("✗ GPTZero failed, falling back to model-based detection:", gptzeroError instanceof Error ? gptzeroError.message : 'GPTZero error');
-        
-        // Fall back to selected LLM provider for detection
-        let result;
-        console.log(`Using fallback provider: ${llmProvider}`);
-        switch (llmProvider) {
-          case 'anthropic':
-            result = await detectAIWithAnthropic(text);
-            break;
-          case 'perplexity':
-            result = await detectAIWithPerplexity(text);
-            break;
-          case 'deepseek':
-            result = await detectAIWithDeepSeek(text);
-            break;
-          default:
-            result = await detectAIWithOpenAI(text);
-        }
-        console.log("Fallback detection result:", result);
+      } catch (llmError) {
+        console.warn(
+          '[AI fallback] All ZHI providers failed during AI detection; trying GPTZero.',
+          llmError instanceof Error ? llmError.message : llmError,
+        );
+
+        const result = await detectAIWithGPTZero(text);
         res.json(result);
       }
     } catch (error: unknown) {
@@ -349,23 +304,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { message, conversationHistory, llmProvider, contextDocument } = chatRequestSchema.parse(req.body);
       
-      let response;
-      switch (llmProvider) {
-        case 'openai':
-          response = await processChatWithOpenAI(message, conversationHistory, contextDocument);
-          break;
-        case 'anthropic':
-          response = await processChatWithAnthropic(message, conversationHistory, contextDocument);
-          break;
-        case 'perplexity':
-          response = await processChatWithPerplexity(message, conversationHistory, contextDocument);
-          break;
-        case 'deepseek':
-          response = await processChatWithDeepSeek(message, conversationHistory, contextDocument);
-          break;
-        default:
-          throw new Error('Invalid LLM provider');
-      }
+      const response = await withProviderFallback(llmProvider, 'chat', provider => {
+        switch (provider) {
+          case 'openai':
+            return processChatWithOpenAI(message, conversationHistory, contextDocument);
+          case 'anthropic':
+            return processChatWithAnthropic(message, conversationHistory, contextDocument);
+          case 'perplexity':
+            return processChatWithPerplexity(message, conversationHistory, contextDocument);
+          case 'deepseek':
+            return processChatWithDeepSeek(message, conversationHistory, contextDocument);
+        }
+      });
       
       res.json({ response });
     } catch (error: unknown) {

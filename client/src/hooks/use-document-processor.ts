@@ -11,6 +11,17 @@ export interface Message {
   timestamp: Date;
 }
 
+const providerNames: Record<LLMProvider, string> = {
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  perplexity: 'Perplexity',
+  deepseek: 'DeepSeek',
+};
+
+function allProvidersUnavailable(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('All AI providers are temporarily unavailable');
+}
+
 export function useDocumentProcessor() {
   const { toast } = useToast();
   
@@ -215,11 +226,13 @@ export function useDocumentProcessor() {
       
     } catch (error: any) {
       console.error('Error processing document:', error);
-      toast({
-        title: "Processing failed",
-        description: error?.message || 'Unknown error occurred',
-        variant: "destructive"
-      });
+      if (!allProvidersUnavailable(error)) {
+        toast({
+          title: "Processing failed",
+          description: error?.message || 'Unknown error occurred',
+          variant: "destructive"
+        });
+      }
     } finally {
       setProcessing(false);
     }
@@ -283,7 +296,13 @@ ${inputExcerpt ? `INPUT DOCUMENT:\n${inputExcerpt}\n\n` : ''}${outputExcerpt ? `
       });
 
       if (!response.ok) {
-        throw new Error(`Chat API error: ${response.status} ${response.statusText}`);
+        const errorData = await response.json().catch(() => null);
+        throw new Error(
+          errorData?.details ||
+          errorData?.error ||
+          errorData?.message ||
+          `Chat API error: ${response.status} ${response.statusText}`
+        );
       }
 
       const data = await response.json();
@@ -297,12 +316,15 @@ ${inputExcerpt ? `INPUT DOCUMENT:\n${inputExcerpt}\n\n` : ''}${outputExcerpt ? `
 
     } catch (error: any) {
       console.error('Error processing dialogue:', error);
-      
-      setDialogueMessages(prev => prev.map(msg => 
-        msg.id === assistantMessageId
-          ? { ...msg, content: `Sorry, I encountered an error: ${error?.message || 'Unknown error'}` }
-          : msg
-      ));
+
+      setDialogueMessages(prev => allProvidersUnavailable(error)
+        ? prev.filter(msg => msg.id !== assistantMessageId)
+        : prev.map(msg =>
+            msg.id === assistantMessageId
+              ? { ...msg, content: `Sorry, I encountered an error: ${error?.message || 'Unknown error'}` }
+              : msg
+          )
+      );
     }
   }, [llmProvider, dialogueMessages, inputText, outputText, setDialogueMessages]);
 
@@ -655,11 +677,6 @@ ${inputExcerpt ? `INPUT DOCUMENT:\n${inputExcerpt}\n\n` : ''}${outputExcerpt ? `
       
     } catch (error: any) {
       console.error('Error detecting AI text:', error);
-      toast({
-        title: "Detection failed",
-        description: error?.message || 'Failed to detect AI text',
-        variant: "destructive"
-      });
     } finally {
       if (target === 'input') {
         setIsInputDetecting(false);
@@ -768,25 +785,15 @@ ${inputExcerpt ? `INPUT DOCUMENT:\n${inputExcerpt}\n\n` : ''}${outputExcerpt ? `
           setOutputText(prev => prev + `\n\n[Processing chunk ${i + 1}/${selectedIndices.length}...]\n\n`);
           
           try {
-            const response = await fetch('/api/process-text', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                inputText: chunkText,
-                instructions: rewriteInstructions,
-                contentSource,
-                useContentSource,
-                styleSource,
-                useStyleSource,
-                llmProvider
-              }),
+            const response = await apiRequest('POST', '/api/process-text', {
+              inputText: chunkText,
+              instructions: rewriteInstructions,
+              contentSource,
+              useContentSource,
+              styleSource,
+              useStyleSource,
+              llmProvider
             });
-            
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
             
             const data = await response.json();
             const processedChunk = data.result;
@@ -809,7 +816,14 @@ ${inputExcerpt ? `INPUT DOCUMENT:\n${inputExcerpt}\n\n` : ''}${outputExcerpt ? `
             
           } catch (chunkError: any) {
             console.error(`Error processing chunk ${chunkIndex}:`, chunkError);
-            setOutputText(prev => prev + `\n\n[Error processing chunk ${i + 1}: ${chunkError.message}]\n\n`);
+            setOutputText(prev => prev
+              .split('\n')
+              .filter(line => !line.includes('[Processing chunk'))
+              .join('\n')
+              .trim());
+            throw new Error(
+              `${providerNames[llmProvider]} failed while processing chunk ${i + 1} of ${selectedIndices.length}: ${chunkError?.message || 'Unknown provider error'}`
+            );
           }
         }
         
@@ -826,25 +840,15 @@ ${inputExcerpt ? `INPUT DOCUMENT:\n${inputExcerpt}\n\n` : ''}${outputExcerpt ? `
         
         const addPrompt = `${rewriteInstructions}\n\nGenerate ${additionalChunks} additional section(s) that complement this document:\n\n${existingText}`;
         
-        const response = await fetch('/api/process-text', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            inputText: addPrompt,
-            instructions: `Generate ${additionalChunks} new section(s) based on the provided document`,
-            contentSource,
-            useContentSource,
-            styleSource,
-            useStyleSource,
-            llmProvider
-          }),
+        const response = await apiRequest('POST', '/api/process-text', {
+          inputText: addPrompt,
+          instructions: `Generate ${additionalChunks} new section(s) based on the provided document`,
+          contentSource,
+          useContentSource,
+          styleSource,
+          useStyleSource,
+          llmProvider
         });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
         
         const data = await response.json();
         
@@ -872,23 +876,13 @@ ${inputExcerpt ? `INPUT DOCUMENT:\n${inputExcerpt}\n\n` : ''}${outputExcerpt ? `
             console.log(`Rewriting chunk ${i + 1}/${selectedIndices.length} (index ${chunkIndex})`);
             
             try {
-              const rewriteResponse = await fetch('/api/process-text', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  inputText: chunkText,
-                  instructions: rewriteInstructions,
-                  contentSource,
-                  useContentSource,
-                  llmProvider
-                }),
+              const rewriteResponse = await apiRequest('POST', '/api/process-text', {
+                inputText: chunkText,
+                instructions: rewriteInstructions,
+                contentSource,
+                useContentSource,
+                llmProvider
               });
-              
-              if (!rewriteResponse.ok) {
-                throw new Error(`HTTP error! status: ${rewriteResponse.status}`);
-              }
               
               const rewriteData = await rewriteResponse.json();
               
@@ -902,8 +896,9 @@ ${inputExcerpt ? `INPUT DOCUMENT:\n${inputExcerpt}\n\n` : ''}${outputExcerpt ? `
               
             } catch (chunkError: any) {
               console.error(`Error rewriting chunk ${chunkIndex}:`, chunkError);
-              workingContent[chunkIndex] = `[Error rewriting chunk: ${chunkError.message}]`;
-              setOutputText(workingContent.join('\n\n'));
+              throw new Error(
+                `${providerNames[llmProvider]} failed while rewriting chunk ${i + 1} of ${selectedIndices.length}: ${chunkError?.message || 'Unknown provider error'}`
+              );
             }
           }
         }
@@ -915,23 +910,13 @@ ${inputExcerpt ? `INPUT DOCUMENT:\n${inputExcerpt}\n\n` : ''}${outputExcerpt ? `
           const currentText = workingContent.join('\n\n');
           const addPrompt = `${rewriteInstructions}\n\nGenerate ${additionalChunks} additional section(s) that complement this document:\n\n${currentText}`;
           
-          const addResponse = await fetch('/api/process-text', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              inputText: addPrompt,
-              instructions: `Generate ${additionalChunks} new section(s) based on the provided document`,
-              contentSource,
-              useContentSource,
-              llmProvider
-            }),
+          const addResponse = await apiRequest('POST', '/api/process-text', {
+            inputText: addPrompt,
+            instructions: `Generate ${additionalChunks} new section(s) based on the provided document`,
+            contentSource,
+            useContentSource,
+            llmProvider
           });
-          
-          if (!addResponse.ok) {
-            throw new Error(`HTTP error! status: ${addResponse.status}`);
-          }
           
           const addData = await addResponse.json();
           
@@ -951,11 +936,13 @@ ${inputExcerpt ? `INPUT DOCUMENT:\n${inputExcerpt}\n\n` : ''}${outputExcerpt ? `
       
     } catch (error: any) {
       console.error('Error processing chunks:', error);
-      toast({
-        title: "Processing failed",
-        description: error?.message || 'Failed to process selected chunks',
-        variant: "destructive"
-      });
+      if (!allProvidersUnavailable(error)) {
+        toast({
+          title: "Processing failed",
+          description: error?.message || 'Failed to process selected chunks',
+          variant: "destructive"
+        });
+      }
     } finally {
       setProcessing(false);
     }
@@ -994,11 +981,13 @@ ${inputExcerpt ? `INPUT DOCUMENT:\n${inputExcerpt}\n\n` : ''}${outputExcerpt ? `
       });
     } catch (error: any) {
       console.error('Error rewriting:', error);
-      toast({
-        title: "Re-rewrite failed",
-        description: error?.message || "Failed to rewrite content",
-        variant: "destructive"
-      });
+      if (!allProvidersUnavailable(error)) {
+        toast({
+          title: "Re-rewrite failed",
+          description: error?.message || "Failed to rewrite content",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsRewriting(false);
     }

@@ -1,0 +1,1 @@
+- [Silent LLM fallback policy](llm-fallback-policy.md) — selected ZHI first, then silent cascade; provider failures never appear in the UI.

@@ -180,10 +180,10 @@ ${getDollarSignFreePrompt()}` },
           processedResults.push(smallChunkResults.join('\n\n'));
         } catch (splitError: any) {
           console.error(`Error processing split chunk ${i + 1}:`, splitError);
-          processedResults.push(`[Error: Document section too large to process - ${splitError.message}]`);
+          throw new Error(`OpenAI failed while processing chunk ${i + 1}: ${splitError.message}`);
         }
       } else {
-        processedResults.push(`[Error processing chunk ${i + 1}: ${error.message}]`);
+        throw new Error(`OpenAI failed while processing chunk ${i + 1}: ${error.message}`);
       }
     }
   }
@@ -503,11 +503,7 @@ export async function detectAIWithOpenAI(text: string): Promise<{ isAI: boolean;
     }
   } catch (error: any) {
     console.error("OpenAI AI detection error:", error);
-    return {
-      isAI: false,
-      confidence: 0,
-      details: `Error during AI detection: ${error.message}`
-    };
+    throw new Error(`Failed to detect AI with OpenAI: ${error.message}`);
   }
 }
 

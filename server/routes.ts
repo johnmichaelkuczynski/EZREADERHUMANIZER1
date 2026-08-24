@@ -76,10 +76,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ status: 'ok' });
   });
 
-  app.get('/api/auth/config', (_req, res) => {
-    res.json({ publishableKey: process.env.CLERK_PUBLISHABLE_KEY || '' });
-  });
-
   // SEPARATE HOMEWORK ENDPOINT - BYPASSES ALL REWRITE LOGIC
   app.post('/api/solve-homework', async (req: Request, res: Response) => {
     try {

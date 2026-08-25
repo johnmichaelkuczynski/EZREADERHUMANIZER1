@@ -39,3 +39,8 @@ externalPort = 80
 integrations = ["javascript_object_storage:1.0.0", "javascript_log_in_with_replit:2.0.0"]
 stack = "FULLSTACK_JS"
 expertMode = true
+
+[userenv]
+
+[userenv.production]
+PUBLIC_SITE_URL = "https://ezreaderhumanizer-1.replit.app"

@@ -190,15 +190,16 @@ export function serveStatic(app: Express) {
 
   // fall through to index.html if the file doesn't exist
   app.use("*", async (req, res, next) => {
+    const pathname = new URL(req.originalUrl, "http://localhost").pathname;
     const knownRoutes = new Set(["/", "/gpt-bypass", "/settings"]);
     try {
-      if (!knownRoutes.has(req.path)) {
+      if (!knownRoutes.has(pathname)) {
         res.set("X-Robots-Tag", "noindex, nofollow, noarchive");
       }
       const template = await fs.promises.readFile(path.resolve(distPath, "index.html"), "utf-8");
-      const page = applyServerSeo(template, req.path, getSiteOrigin(req));
+      const page = applyServerSeo(template, pathname, getSiteOrigin(req));
       res
-        .status(knownRoutes.has(req.path) ? 200 : 404)
+        .status(knownRoutes.has(pathname) ? 200 : 404)
         .type("text/html")
         .send(page);
     } catch (error) {

@@ -4,6 +4,30 @@ import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 app.set("trust proxy", 1);
+
+if (process.env.NODE_ENV === "production") {
+  const requiredEnvironment = ["PUBLIC_BASE_URL", "SESSION_SECRET"];
+  const missingEnvironment = requiredEnvironment.filter((name) => !process.env[name]);
+  if (missingEnvironment.length > 0) {
+    throw new Error(
+      `Missing required production environment variables: ${missingEnvironment.join(", ")}`,
+    );
+  }
+
+  if ((process.env.SESSION_SECRET || "").length < 32) {
+    throw new Error("SESSION_SECRET must contain at least 32 characters in production.");
+  }
+
+  try {
+    const publicBaseUrl = new URL(process.env.PUBLIC_BASE_URL!);
+    if (publicBaseUrl.protocol !== "https:" || publicBaseUrl.username || publicBaseUrl.password) {
+      throw new Error("PUBLIC_BASE_URL must be an HTTPS URL without embedded credentials.");
+    }
+  } catch {
+    throw new Error("PUBLIC_BASE_URL must be a valid public HTTPS URL.");
+  }
+}
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 

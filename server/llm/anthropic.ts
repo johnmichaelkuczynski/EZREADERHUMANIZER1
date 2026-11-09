@@ -46,7 +46,7 @@ ${getDollarSignFreePrompt()}`;
         userPrompt = `${instructions}\n\nStyle reference (analyze and emulate this writing style):\n${styleSource}\n\nProcess this chunk ${i + 1} of ${chunks.length}. RETURN ONLY THE PROCESSED CONTENT - DO NOT include any explanations, summaries, or commentary about what you did:\n${chunk}`;
       }
       
-      const message = await anthropic.messages.create({
+      const message = await getAnthropicClient().messages.create({
         model: "claude-3-7-sonnet-20250219",
         system: systemPrompt,
         max_tokens: maxTokens,
@@ -149,10 +149,19 @@ function splitIntoChunks(text: string, maxChunkTokens: number = 50000): string[]
   return chunks;
 }
 
-// the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+let anthropic: Anthropic | null = null;
+
+function getAnthropicClient(): Anthropic {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error("ANTHROPIC_API_KEY environment variable is required for Anthropic requests.");
+  }
+
+  if (!anthropic) {
+    anthropic = new Anthropic({ apiKey });
+  }
+  return anthropic;
+}
 
 export async function processTextWithAnthropic(options: ProcessTextOptions): Promise<string> {
   const { text, instructions, contentSource, styleSource, useContentSource, useStyleSource, maxTokens = 4000, examMode = false } = options;
@@ -182,7 +191,7 @@ export async function processTextWithAnthropic(options: ProcessTextOptions): Pro
     const userContent = `Please solve the following assignment completely:\n\n${text}`;
     
     try {
-      const message = await anthropic.messages.create({
+      const message = await getAnthropicClient().messages.create({
         model: "claude-3-7-sonnet-20250219",
         system: enhancedPrompt,
         max_tokens: maxTokens,
@@ -263,7 +272,7 @@ CRITICAL STYLE TRANSFER INSTRUCTIONS:
   }
   
   try {
-    const message = await anthropic.messages.create({
+    const message = await getAnthropicClient().messages.create({
       model: "claude-3-7-sonnet-20250219",
       system: systemPrompt,
       max_tokens: maxTokens,
@@ -300,7 +309,7 @@ CRITICAL STYLE TRANSFER INSTRUCTIONS:
 // PURE HOMEWORK SOLVER - NO REWRITE LOGIC
 export async function solveHomeworkWithAnthropic(assignment: string): Promise<string> {
   try {
-    const message = await anthropic.messages.create({
+    const message = await getAnthropicClient().messages.create({
       model: "claude-3-7-sonnet-20250219",
       system: `You are an expert tutor and academic assistant. Solve the following assignment thoroughly and step-by-step. Provide complete solutions, not just explanations. For math problems, show all work and provide final answers. For written questions, provide comprehensive responses. Actually solve the problems presented.
 
@@ -396,7 +405,7 @@ export async function processChatWithAnthropic(
   messages = truncateAnthropicHistory(messages);
 
   try {
-    const response = await anthropic.messages.create({
+    const response = await getAnthropicClient().messages.create({
       model: "claude-3-7-sonnet-20250219", // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
       max_tokens: 4000,
       temperature: 0.7,
@@ -414,7 +423,7 @@ export async function processChatWithAnthropic(
 export async function detectAIWithAnthropic(text: string): Promise<{ isAI: boolean; confidence: number; details: string }> {
   // No need to protect math formulas for AI detection
   try {
-    const response = await anthropic.messages.create({
+    const response = await getAnthropicClient().messages.create({
       model: "claude-3-7-sonnet-20250219",
       system: "You're an AI detection expert. Analyze the text for AI authorship indicators. Output valid JSON with these keys: isAI (boolean), confidence (number between 0-1), and details (string with explanation).",
       max_tokens: 1024,

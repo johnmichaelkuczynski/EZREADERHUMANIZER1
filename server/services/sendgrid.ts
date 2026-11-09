@@ -1,8 +1,19 @@
 import { MailService } from '@sendgrid/mail';
 
-// Initialize SendGrid
-const mailService = new MailService();
-mailService.setApiKey(process.env.SENDGRID_API_KEY || "");
+let mailService: MailService | null = null;
+
+function getMailService(): MailService {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) {
+    throw new Error("Email sending is unavailable because SENDGRID_API_KEY is not configured.");
+  }
+
+  if (!mailService) {
+    mailService = new MailService();
+    mailService.setApiKey(apiKey);
+  }
+  return mailService;
+}
 
 const DEFAULT_FROM_EMAIL = "jm@analyticphilosophy.ai";
 
@@ -18,7 +29,7 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
   const { to, subject, text, html, fromEmail = DEFAULT_FROM_EMAIL } = params;
   
   try {
-    await mailService.send({
+    await getMailService().send({
       to,
       from: fromEmail,
       subject,
@@ -29,7 +40,9 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('SendGrid email error:', error);
-    throw new Error(`Failed to send email: ${error.message}`);
+    throw new Error(
+      `Failed to send email: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 

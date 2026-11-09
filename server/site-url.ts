@@ -1,7 +1,7 @@
 import type { Request } from "express";
 
 function configuredOrigin(): string | null {
-  const configured = process.env.PUBLIC_SITE_URL;
+  const configured = process.env.PUBLIC_BASE_URL;
   if (!configured) return null;
 
   try {
@@ -18,6 +18,10 @@ function configuredOrigin(): string | null {
 export function getSiteOrigin(req: Request): string {
   const configured = configuredOrigin();
   if (configured) return configured;
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("PUBLIC_BASE_URL must be set in production.");
+  }
 
   const requestedHost = req.get("host") || "";
   const hostname = requestedHost.split(":")[0].toLowerCase();

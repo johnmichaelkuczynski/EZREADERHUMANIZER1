@@ -68,6 +68,12 @@ request is not automatically resumed if its container stops; its job record
 remains available, but the work itself must be retried. Keep one replica until
 background job execution and recovery are coordinated.
 
+Rewrite history belongs to the signed anonymous visitor cookie. Listing, job
+lookup, and re-rewrite are restricted to that visitor; no login wall is added.
+Keep `SESSION_SECRET` stable across restarts. Clearing cookies or rotating the
+secret removes that browser's access to its old anonymous history. Legacy rows
+without an owner remain in the database but are not exposed through the API.
+
 The runtime retains development dependencies because the existing server bundle
 imports Vite/plugins on startup. The container explicitly runs in production.
 The PDF library's direct entrypoint avoids its package-root debug behavior, so

@@ -12,7 +12,7 @@ import { documents, rewriteJobs, visitors } from "../shared/schema";
 async function verify() {
   assert.ok(storage instanceof DatabaseStorage);
   if (process.argv[2] === "--read") {
-    const job = await storage.getRewriteJob(process.argv[3]);
+    const job = await storage.getRewriteJob(process.argv[3], process.argv[5]);
     const document = await storage.getDocument(process.argv[4]);
     assert.equal(job?.status, "completed");
     assert.equal(job?.outputText, "Database persistence smoke test output.");
@@ -22,6 +22,8 @@ async function verify() {
   }
 
   const marker = `db-verification-${randomUUID()}`;
+  const owner = randomUUID();
+  const otherVisitor = randomUUID();
   let documentId: string | undefined;
   let jobId: string | undefined;
   try {
@@ -39,7 +41,7 @@ async function verify() {
       provider: "openai",
       selectedPresets: ["verification"],
       chunks: [{ id: marker, content: "Test chunk", startWord: 0, endWord: 2 }],
-    });
+    }, owner);
     jobId = job.id;
     assert.equal(job.status, "pending");
     assert.equal(job.outputText, null);
@@ -47,11 +49,14 @@ async function verify() {
     assert.equal(job.chunks?.[0].id, marker);
     await storage.updateRewriteJob(jobId, {
       status: "completed", outputText: "Database persistence smoke test output.",
-    });
-    assert.ok((await storage.listRewriteJobs()).some(row => row.id === jobId));
+    }, owner);
+    assert.ok((await storage.listRewriteJobs(owner)).some(row => row.id === jobId));
+    assert.equal(await storage.getRewriteJob(jobId, otherVisitor), undefined);
+    assert.ok(!(await storage.listRewriteJobs(otherVisitor)).some(row => row.id === jobId));
+    await assert.rejects(storage.updateRewriteJob(jobId, { status: "completed" }, otherVisitor));
 
     const child = spawnSync(process.execPath, [
-      "--import", "tsx", fileURLToPath(import.meta.url), "--read", jobId, documentId,
+      "--import", "tsx", fileURLToPath(import.meta.url), "--read", jobId, documentId, owner,
     ], { encoding: "utf8", timeout: 30000 });
     assert.equal(child.status, 0, "Fresh process must retrieve saved records");
     console.log(child.stdout.trim());
@@ -63,8 +68,8 @@ async function verify() {
     const matches = await db.select().from(visitors).where(eq(visitors.visitorId, marker));
     assert.equal(matches.length, 1);
     assert.equal(await storage.getDocument(randomUUID()), undefined);
-    assert.equal(await storage.getRewriteJob(randomUUID()), undefined);
-    await assert.rejects(storage.updateRewriteJob(randomUUID(), { status: "completed" }));
+    assert.equal(await storage.getRewriteJob(randomUUID(), owner), undefined);
+    await assert.rejects(storage.updateRewriteJob(randomUUID(), { status: "completed" }, owner));
     console.log("PASS document/job writes, updates, defaults, JSON, missing records, visitor deduplication");
   } finally {
     // IDs/marker belong exclusively to this run; preserve all preexisting data.

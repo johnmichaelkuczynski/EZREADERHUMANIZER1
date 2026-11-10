@@ -2,7 +2,7 @@ import type {
   Document, InsertDocument, RewriteJob, InsertRewriteJob
 } from "@shared/schema";
 import { db } from "./db";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { documents, rewriteJobs } from "@shared/schema";
 
 export interface IStorage {
@@ -11,10 +11,10 @@ export interface IStorage {
   getDocument(id: string): Promise<Document | undefined>;
   
   // Rewrite job operations
-  createRewriteJob(job: InsertRewriteJob): Promise<RewriteJob>;
-  getRewriteJob(id: string): Promise<RewriteJob | undefined>;
-  updateRewriteJob(id: string, updates: Partial<RewriteJob>): Promise<RewriteJob>;
-  listRewriteJobs(): Promise<RewriteJob[]>;
+  createRewriteJob(job: InsertRewriteJob, visitorId: string): Promise<RewriteJob>;
+  getRewriteJob(id: string, visitorId: string): Promise<RewriteJob | undefined>;
+  updateRewriteJob(id: string, updates: Partial<RewriteJob>, visitorId: string): Promise<RewriteJob>;
+  listRewriteJobs(visitorId: string): Promise<RewriteJob[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -28,27 +28,34 @@ export class DatabaseStorage implements IStorage {
     return document;
   }
 
-  async createRewriteJob(insertJob: InsertRewriteJob): Promise<RewriteJob> {
-    const [job] = await db.insert(rewriteJobs).values(insertJob).returning();
+  async createRewriteJob(insertJob: InsertRewriteJob, visitorId: string): Promise<RewriteJob> {
+    if (!visitorId) throw new Error("Visitor identity is required.");
+    const [job] = await db.insert(rewriteJobs).values({ ...insertJob, visitorId }).returning();
     return job;
   }
 
-  async getRewriteJob(id: string): Promise<RewriteJob | undefined> {
-    const [job] = await db.select().from(rewriteJobs).where(eq(rewriteJobs.id, id));
+  async getRewriteJob(id: string, visitorId: string): Promise<RewriteJob | undefined> {
+    if (!visitorId) throw new Error("Visitor identity is required.");
+    const [job] = await db.select().from(rewriteJobs).where(and(
+      eq(rewriteJobs.id, id), eq(rewriteJobs.visitorId, visitorId),
+    ));
     return job;
   }
 
-  async updateRewriteJob(id: string, updates: Partial<RewriteJob>): Promise<RewriteJob> {
-    const [job] = await db.update(rewriteJobs).set(updates)
-      .where(eq(rewriteJobs.id, id)).returning();
+  async updateRewriteJob(id: string, updates: Partial<RewriteJob>, visitorId: string): Promise<RewriteJob> {
+    if (!visitorId) throw new Error("Visitor identity is required.");
+    const [job] = await db.update(rewriteJobs).set({ ...updates, id, visitorId })
+      .where(and(eq(rewriteJobs.id, id), eq(rewriteJobs.visitorId, visitorId))).returning();
     if (!job) {
       throw new Error(`Rewrite job with id ${id} not found`);
     }
     return job;
   }
 
-  async listRewriteJobs(): Promise<RewriteJob[]> {
-    return db.select().from(rewriteJobs).orderBy(desc(rewriteJobs.createdAt));
+  async listRewriteJobs(visitorId: string): Promise<RewriteJob[]> {
+    if (!visitorId) throw new Error("Visitor identity is required.");
+    return db.select().from(rewriteJobs).where(eq(rewriteJobs.visitorId, visitorId))
+      .orderBy(desc(rewriteJobs.createdAt));
   }
 }
 

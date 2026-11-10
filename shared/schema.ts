@@ -20,6 +20,7 @@ export const documents = pgTable("documents", {
 
 export const rewriteJobs = pgTable("rewrite_jobs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  visitorId: text("visitor_id"),
   inputText: text("input_text").notNull(),
   styleText: text("style_text"),
   contentMixText: text("content_mix_text"),
@@ -70,6 +71,7 @@ export const insertRewriteJobSchema = createInsertSchema(rewriteJobs, {
 }).omit({
   id: true,
   createdAt: true,
+  visitorId: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

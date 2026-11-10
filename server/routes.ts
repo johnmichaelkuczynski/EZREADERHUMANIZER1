@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import multer from "multer";
@@ -111,7 +111,9 @@ function readSignedVisitorId(req: Request, secret: string): string | undefined {
   const cookieValue = readCookie(req.get("cookie"), VISITOR_COOKIE);
   if (!cookieValue) return undefined;
 
-  const [visitorId, signature] = cookieValue.split(".");
+  const parts = cookieValue.split(".");
+  if (parts.length !== 2) return undefined;
+  const [visitorId, signature] = parts;
   if (!visitorId || !signature || !UUID_PATTERN.test(visitorId)) return undefined;
 
   const expected = Buffer.from(signVisitorId(visitorId, secret));
@@ -121,6 +123,26 @@ function readSignedVisitorId(req: Request, secret: string): string | undefined {
   }
 
   return visitorId;
+}
+
+function requireRewriteVisitor(req: Request, res: Response, next: NextFunction) {
+  res.set("Cache-Control", "private, no-store");
+  res.vary("Cookie");
+  const secret = getVisitorSecret();
+  if (!secret) {
+    res.status(503).json({ error: "Saved rewrite storage is temporarily unavailable." });
+    return;
+  }
+  let visitorId = readSignedVisitorId(req, secret);
+  if (!visitorId) {
+    visitorId = randomUUID();
+    res.cookie(VISITOR_COOKIE, `${visitorId}.${signVisitorId(visitorId, secret)}`, {
+      httpOnly: true, secure: isSecureRequest(req), sameSite: "lax",
+      maxAge: VISITOR_COOKIE_MAX_AGE_SECONDS * 1000, path: "/",
+    });
+  }
+  res.locals.rewriteVisitorId = visitorId;
+  next();
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -934,8 +956,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const textChunker = new TextChunker();
 
   // Process GPT Bypass rewrite request
-  app.post('/api/gpt-bypass/rewrite', upload.single('file'), async (req: Request, res: Response) => {
+  app.post('/api/gpt-bypass/rewrite', requireRewriteVisitor, upload.single('file'), async (req: Request, res: Response) => {
     try {
+      const visitorId: string = res.locals.rewriteVisitorId;
       const schema = z.object({
         inputText: z.string().optional(),
         styleText: z.string().optional(),
@@ -962,7 +985,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let textToProcess = finalInputText;
       
       if (data.reRewrite && data.jobId) {
-        const existingJob = await storage.getRewriteJob(data.jobId);
+        const existingJob = await storage.getRewriteJob(data.jobId, visitorId);
         if (!existingJob) {
           return res.status(404).json({ error: 'Job not found for re-rewrite' });
         }
@@ -976,11 +999,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           styleText: data.styleText || '',
           provider: data.provider,
           status: 'processing'
-        });
+        }, visitorId);
       }
 
       // Update job status
-      await storage.updateRewriteJob(job.id, { status: 'processing' });
+      await storage.updateRewriteJob(job.id, { status: 'processing' }, visitorId);
 
       // Get style sample (default to Raven Paradox if none provided)
       const defaultStyleSample = `There are two broad types of relationships: formal and functional. Formal relationships hold between linguistic entities. Functional relationships hold between properties. When I say "Snow is white" is true if and only if snow is white, the relationship between the sentence "Snow is white" and the sentence "snow is white" is formal: both are sentences, and the relationship between them can be captured in terms of their syntax and semantics. When I say that being white is a color property, the relationship between being white and being a color is functional: both are properties (of objects), and the relationship between them can be captured in terms of the functional roles that properties play.`;
@@ -1006,7 +1029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedJob = await storage.updateRewriteJob(job.id, {
         outputText: rewrittenText,
         status: 'completed'
-      });
+      }, visitorId);
 
       res.json({
         success: true,
@@ -1044,10 +1067,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get rewrite job status
-  app.get('/api/gpt-bypass/job/:jobId', async (req: Request, res: Response) => {
+  app.get('/api/gpt-bypass/job/:jobId', requireRewriteVisitor, async (req: Request, res: Response) => {
     try {
       const { jobId } = req.params;
-      const job = await storage.getRewriteJob(jobId);
+      const job = await storage.getRewriteJob(jobId, res.locals.rewriteVisitorId);
 
       if (!job) {
         return res.status(404).json({ error: 'Job not found' });
@@ -1064,9 +1087,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // List all rewrite jobs
-  app.get('/api/gpt-bypass/jobs', async (req: Request, res: Response) => {
+  app.get('/api/gpt-bypass/jobs', requireRewriteVisitor, async (req: Request, res: Response) => {
     try {
-      const jobs = await storage.listRewriteJobs();
+      const jobs = await storage.listRewriteJobs(res.locals.rewriteVisitorId);
       res.json(jobs);
 
     } catch (error) {

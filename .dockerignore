@@ -1,0 +1,31 @@
+# Only application/build inputs enter the Docker context. Secrets, Git history,
+# uploads, local dependencies, and workspace configuration are excluded by default.
+**
+!Dockerfile
+!.dockerignore
+!package.json
+!package-lock.json
+!tsconfig.json
+!vite.config.ts
+!tailwind.config.ts
+!postcss.config.js
+!components.json
+!client/
+!client/**
+!server/
+!server/**
+!shared/
+!shared/**
+!public/
+!public/**
+!test/
+!test/data/
+!test/data/05-versions-space.pdf
+
+# Never include credentials even if someone places them in a source directory.
+**/.env
+**/.env.*
+**/node_modules
+**/*.pem
+**/*.key
+**/.npmrc

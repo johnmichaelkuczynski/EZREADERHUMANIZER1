@@ -49,6 +49,6 @@ The server starts without these values. The feature that uses a missing integrat
 - Route Traefik to the container's HTTP port `5000`. Terminate HTTPS at Traefik; the app trusts one reverse proxy.
 - Supply all three required production variables above as runtime variables, not build arguments. API keys are runtime variables too.
 - The image builds without database credentials or provider keys.
-- For a new PostgreSQL database, initialize the schema with `npm run db:push` against the target `DATABASE_URL` before using database-backed features. Review proposed schema changes first if the database already contains data.
+- Initialize the external Neon schema with `npm run db:migrate` against the target `DATABASE_URL` before using database-backed features. This applies committed, versioned migrations. Do not use `db:push` or a destructive schema reset.
 - There are no OAuth callbacks or login/session redirects to configure.
 - Health check: `GET /api/health` returns HTTP 200. Public page check: `GET /` returns HTTP 200.

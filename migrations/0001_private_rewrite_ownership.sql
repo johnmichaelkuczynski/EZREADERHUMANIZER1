@@ -1,0 +1,1 @@
+ALTER TABLE "rewrite_jobs" ADD COLUMN "visitor_id" text;

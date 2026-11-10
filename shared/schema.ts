@@ -20,6 +20,7 @@ export const documents = pgTable("documents", {
 
 export const rewriteJobs = pgTable("rewrite_jobs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  visitorId: text("visitor_id"),
   inputText: text("input_text").notNull(),
   styleText: text("style_text"),
   contentMixText: text("content_mix_text"),
@@ -54,9 +55,23 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({
   createdAt: true,
 });
 
-export const insertRewriteJobSchema = createInsertSchema(rewriteJobs).omit({
+// Explicit JSON schemas keep drizzle-zod's inferred array types compatible
+// with the actual JSONB values accepted by the database.
+export const insertRewriteJobSchema = createInsertSchema(rewriteJobs, {
+  selectedPresets: z.array(z.string()).nullable().optional(),
+  selectedChunkIds: z.array(z.string()).nullable().optional(),
+  chunks: z.array(z.object({
+    id: z.string(),
+    content: z.string(),
+    startWord: z.number(),
+    endWord: z.number(),
+    aiScore: z.number().optional(),
+  })).nullable().optional(),
+  mixingMode: z.enum(["style", "content", "both"]).nullable().optional(),
+}).omit({
   id: true,
   createdAt: true,
+  visitorId: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

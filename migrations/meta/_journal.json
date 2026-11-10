@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794325156979,
+      "tag": "0000_external_neon_initial",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794325980124,
+      "tag": "0001_private_rewrite_ownership",
+      "breakpoints": true
+    }
+  ]
+}

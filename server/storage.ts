@@ -1,12 +1,9 @@
-import { 
-  type User, type InsertUser, 
-  type Document, type InsertDocument,
-  type RewriteJob, type InsertRewriteJob
+import type {
+  Document, InsertDocument, RewriteJob, InsertRewriteJob
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
-import { users, documents, rewriteJobs } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { and, desc, eq } from "drizzle-orm";
+import { documents, rewriteJobs } from "@shared/schema";
 
 export interface IStorage {
   // Document operations
@@ -14,152 +11,53 @@ export interface IStorage {
   getDocument(id: string): Promise<Document | undefined>;
   
   // Rewrite job operations
-  createRewriteJob(job: InsertRewriteJob): Promise<RewriteJob>;
-  getRewriteJob(id: string): Promise<RewriteJob | undefined>;
-  updateRewriteJob(id: string, updates: Partial<RewriteJob>): Promise<RewriteJob>;
-  listRewriteJobs(): Promise<RewriteJob[]>;
+  createRewriteJob(job: InsertRewriteJob, visitorId: string): Promise<RewriteJob>;
+  getRewriteJob(id: string, visitorId: string): Promise<RewriteJob | undefined>;
+  updateRewriteJob(id: string, updates: Partial<RewriteJob>, visitorId: string): Promise<RewriteJob>;
+  listRewriteJobs(visitorId: string): Promise<RewriteJob[]>;
 }
 
 export class DatabaseStorage implements IStorage {
   async createDocument(insertDocument: InsertDocument): Promise<Document> {
-    const id = randomUUID();
-    const document: Document = {
-      ...insertDocument,
-      id,
-      createdAt: new Date(),
-    };
-    
-    try {
-      const [newDocument] = await db.insert(documents).values(document).returning();
-      return newDocument;
-    } catch (error) {
-      console.error('Database error creating document:', error);
-      throw error;
-    }
-  }
-
-  async getDocument(id: string): Promise<Document | undefined> {
-    try {
-      const [document] = await db.select().from(documents).where(eq(documents.id, id));
-      return document;
-    } catch (error) {
-      console.error('Database error getting document:', error);
-      return undefined;
-    }
-  }
-
-  async createRewriteJob(insertJob: InsertRewriteJob): Promise<RewriteJob> {
-    const id = randomUUID();
-    const job: RewriteJob = {
-      ...insertJob,
-      id,
-      createdAt: new Date(),
-    };
-    
-    try {
-      const [newJob] = await db.insert(rewriteJobs).values(job).returning();
-      return newJob;
-    } catch (error) {
-      console.error('Database error creating rewrite job:', error);
-      throw error;
-    }
-  }
-
-  async getRewriteJob(id: string): Promise<RewriteJob | undefined> {
-    try {
-      const [job] = await db.select().from(rewriteJobs).where(eq(rewriteJobs.id, id));
-      return job;
-    } catch (error) {
-      console.error('Database error getting rewrite job:', error);
-      return undefined;
-    }
-  }
-
-  async updateRewriteJob(id: string, updates: Partial<RewriteJob>): Promise<RewriteJob> {
-    try {
-      const [updatedJob] = await db
-        .update(rewriteJobs)
-        .set(updates)
-        .where(eq(rewriteJobs.id, id))
-        .returning();
-      
-      if (!updatedJob) {
-        throw new Error(`Rewrite job with id ${id} not found`);
-      }
-      
-      return updatedJob;
-    } catch (error) {
-      console.error('Database error updating rewrite job:', error);
-      throw error;
-    }
-  }
-
-  async listRewriteJobs(): Promise<RewriteJob[]> {
-    try {
-      const jobs = await db.select().from(rewriteJobs).orderBy(rewriteJobs.createdAt);
-      return jobs.reverse(); // Most recent first
-    } catch (error) {
-      console.error('Database error listing rewrite jobs:', error);
-      return [];
-    }
-  }
-}
-
-export class MemStorage implements IStorage {
-  private documents: Map<string, Document>;
-  private rewriteJobs: Map<string, RewriteJob>;
-
-  constructor() {
-    this.documents = new Map();
-    this.rewriteJobs = new Map();
-  }
-
-  async createDocument(insertDocument: InsertDocument): Promise<Document> {
-    const id = randomUUID();
-    const document: Document = {
-      ...insertDocument,
-      id,
-      createdAt: new Date(),
-    };
-    this.documents.set(id, document);
+    const [document] = await db.insert(documents).values(insertDocument).returning();
     return document;
   }
 
   async getDocument(id: string): Promise<Document | undefined> {
-    return this.documents.get(id);
+    const [document] = await db.select().from(documents).where(eq(documents.id, id));
+    return document;
   }
 
-  async createRewriteJob(insertJob: InsertRewriteJob): Promise<RewriteJob> {
-    const id = randomUUID();
-    const job: RewriteJob = {
-      ...insertJob,
-      id,
-      createdAt: new Date(),
-    };
-    this.rewriteJobs.set(id, job);
+  async createRewriteJob(insertJob: InsertRewriteJob, visitorId: string): Promise<RewriteJob> {
+    if (!visitorId) throw new Error("Visitor identity is required.");
+    const [job] = await db.insert(rewriteJobs).values({ ...insertJob, visitorId }).returning();
     return job;
   }
 
-  async getRewriteJob(id: string): Promise<RewriteJob | undefined> {
-    return this.rewriteJobs.get(id);
+  async getRewriteJob(id: string, visitorId: string): Promise<RewriteJob | undefined> {
+    if (!visitorId) throw new Error("Visitor identity is required.");
+    const [job] = await db.select().from(rewriteJobs).where(and(
+      eq(rewriteJobs.id, id), eq(rewriteJobs.visitorId, visitorId),
+    ));
+    return job;
   }
 
-  async updateRewriteJob(id: string, updates: Partial<RewriteJob>): Promise<RewriteJob> {
-    const existingJob = this.rewriteJobs.get(id);
-    if (!existingJob) {
+  async updateRewriteJob(id: string, updates: Partial<RewriteJob>, visitorId: string): Promise<RewriteJob> {
+    if (!visitorId) throw new Error("Visitor identity is required.");
+    const [job] = await db.update(rewriteJobs).set({ ...updates, id, visitorId })
+      .where(and(eq(rewriteJobs.id, id), eq(rewriteJobs.visitorId, visitorId))).returning();
+    if (!job) {
       throw new Error(`Rewrite job with id ${id} not found`);
     }
-    
-    const updatedJob = { ...existingJob, ...updates };
-    this.rewriteJobs.set(id, updatedJob);
-    return updatedJob;
+    return job;
   }
 
-  async listRewriteJobs(): Promise<RewriteJob[]> {
-    return Array.from(this.rewriteJobs.values()).sort(
-      (a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
-    );
+  async listRewriteJobs(visitorId: string): Promise<RewriteJob[]> {
+    if (!visitorId) throw new Error("Visitor identity is required.");
+    return db.select().from(rewriteJobs).where(eq(rewriteJobs.visitorId, visitorId))
+      .orderBy(desc(rewriteJobs.createdAt));
   }
 }
 
-export const storage = new MemStorage();
+// Database errors propagate to the API; never pretend data was saved in memory.
+export const storage: IStorage = new DatabaseStorage();

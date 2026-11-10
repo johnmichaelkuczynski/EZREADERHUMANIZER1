@@ -23,10 +23,10 @@ Docker build arguments.
 
 - `DATABASE_URL`: required at server startup. Use the complete connection string
   for your own external Neon database, including its SSL parameters. Use this
-  exact variable name, not `NEON_DATABASE_URL`. The driver uses Neon WebSockets and
-  cannot be pointed at an ordinary PostgreSQL service without a driver change.
-- `SESSION_SECRET`: required for signed visitor cookies.
-- `PUBLIC_SITE_URL`: the final public HTTPS origin, such as
+  exact variable name, not `NEON_DATABASE_URL`. The app uses the standard
+  PostgreSQL driver and honors the connection string's SSL settings.
+- `SESSION_SECRET`: required for signed visitor cookies; at least 32 characters.
+- `PUBLIC_BASE_URL`: required in production; the final public HTTPS origin, such as
   `https://reader.example.com`. This must match the domain configured in Coolify.
 - Copy the provider keys for the features you use: `OPENAI_API_KEY`,
   `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY`, `DEEPSEEK_API_KEY`, and
@@ -56,7 +56,7 @@ older in-memory server are not automatically imported.
 
 Confirm `/api/health`, `/`, `/gpt-bypass`, `/settings`, `/robots.txt`, and
 `/sitemap.xml` respond correctly; a nonexistent route should return HTTP 404.
-Check that canonical URLs and sitemap entries use the final HTTPS domain.
+Check that canonical URLs and sitemap entries use the HTTPS `PUBLIC_BASE_URL`.
 Submit that domain's `/sitemap.xml` in Google Search Console and Bing Webmaster
 Tools after verifying ownership.
 
@@ -69,6 +69,6 @@ remains available, but the work itself must be retried. Keep one replica until
 background job execution and recovery are coordinated.
 
 The runtime retains development dependencies because the existing server bundle
-imports Vite/plugins on startup. It also includes the small PDF fixture used by
-the current `pdf-parse` ESM startup behavior. These are deliberate compatibility
-choices, not a development server: the container explicitly runs in production.
+imports Vite/plugins on startup. The container explicitly runs in production.
+The PDF library's direct entrypoint avoids its package-root debug behavior, so
+workspace test fixtures are not included in the image.

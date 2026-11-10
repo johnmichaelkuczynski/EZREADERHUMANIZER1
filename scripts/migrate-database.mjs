@@ -1,10 +1,9 @@
 import { fileURLToPath } from "node:url";
-import { Pool, neonConfig } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { migrate } from "drizzle-orm/neon-serverless/migrator";
-import ws from "ws";
+import pg from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 
-neonConfig.webSocketConstructor = ws;
+const { Pool } = pg;
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {

@@ -48,3 +48,7 @@ expertMode = true
 
 [userenv.production]
 PUBLIC_SITE_URL = "https://ezreaderhumanizer-1.replit.app"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 180000

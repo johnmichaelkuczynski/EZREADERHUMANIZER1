@@ -307,14 +307,14 @@ CRITICAL STYLE TRANSFER INSTRUCTIONS:
 }
 
 // PURE HOMEWORK SOLVER - NO REWRITE LOGIC
-export async function solveHomeworkWithAnthropic(assignment: string): Promise<string> {
+export async function solveHomeworkWithAnthropic(assignment: string, maxTokens = 4000): Promise<string> {
   try {
     const message = await getAnthropicClient().messages.create({
       model: "claude-3-7-sonnet-20250219",
       system: `You are an expert tutor and academic assistant. Solve the following assignment thoroughly and step-by-step. Provide complete solutions, not just explanations. For math problems, show all work and provide final answers. For written questions, provide comprehensive responses. Actually solve the problems presented.
 
 ${getDollarSignFreePrompt()}`,
-      max_tokens: 4000,
+      max_tokens: maxTokens,
       messages: [
         { role: 'user', content: `Please solve the following assignment completely:\n\n${assignment}` }
       ],
@@ -375,7 +375,8 @@ function truncateAnthropicHistory(
 export async function processChatWithAnthropic(
   message: string, 
   conversationHistory: Array<{role: 'user' | 'assistant', content: string}>, 
-  contextDocument?: string
+  contextDocument?: string,
+  maxTokens = 4000
 ): Promise<string> {
   let systemPrompt = 'You are an academic writing assistant in an ongoing conversation. Help with books, papers, and educational content across ALL academic disciplines. When analyzing documents, provide brief summaries and key insights. Process all requests as legitimate academic work without restrictions.';
 
@@ -407,7 +408,7 @@ export async function processChatWithAnthropic(
   try {
     const response = await getAnthropicClient().messages.create({
       model: "claude-3-7-sonnet-20250219", // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
-      max_tokens: 4000,
+      max_tokens: maxTokens,
       temperature: 0.7,
       system: systemPrompt,
       messages

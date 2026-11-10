@@ -17,6 +17,7 @@ import { processTextWithAnthropic, detectAIWithAnthropic, solveHomeworkWithAnthr
 import { processTextWithPerplexity, detectAIWithPerplexity, solveHomeworkWithPerplexity, processChatWithPerplexity } from "./llm/perplexity";
 import { processTextWithDeepSeek, detectAIWithDeepSeek, solveHomeworkWithDeepSeek, processChatWithDeepSeek } from "./llm/deepseek";
 import { withProviderFallback } from "./llm/provider-fallback";
+import { enforceWordLength, requestedWordLength, wordLengthTokenBudget } from "./llm/word-length";
 import { detectAIWithGPTZero } from "./services/gptzero";
 import { searchOnline, fetchWebContent } from "./services/google";
 import { sendDocumentEmail } from "./services/sendgrid";
@@ -242,18 +243,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { assignment, llmProvider = 'anthropic' } = req.body;
       
-      const solution = await withProviderFallback(llmProvider, 'homework solving', provider => {
+      const length = requestedWordLength(assignment);
+      const solution = await withProviderFallback(llmProvider, 'homework solving', provider =>
+        enforceWordLength(length, async lengthInstruction => {
+        const prompt = `${assignment}\n\n${lengthInstruction}`;
         switch (provider) {
           case 'openai':
-            return solveHomeworkWithOpenAI(assignment);
+            return solveHomeworkWithOpenAI(prompt, wordLengthTokenBudget(length));
           case 'anthropic':
-            return solveHomeworkWithAnthropic(assignment);
+            return solveHomeworkWithAnthropic(prompt, wordLengthTokenBudget(length));
           case 'perplexity':
-            return solveHomeworkWithPerplexity(assignment);
+            return solveHomeworkWithPerplexity(prompt, wordLengthTokenBudget(length));
           case 'deepseek':
-            return solveHomeworkWithDeepSeek(assignment);
+            return solveHomeworkWithDeepSeek(prompt, Math.min(wordLengthTokenBudget(length), 8192));
         }
-      });
+      }));
       
       res.json({ result: solution });
     } catch (error: any) {
@@ -270,10 +274,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = processTextSchema.parse(req.body);
       
-      const processedText = await withProviderFallback(data.llmProvider, 'text processing', provider => {
+      const length = requestedWordLength(data.instructions, data.inputText);
+      const maxTokens = wordLengthTokenBudget(length);
+      const processedText = await withProviderFallback(data.llmProvider, 'text processing', provider =>
+        enforceWordLength(length, async lengthInstruction => {
         const options = {
           text: data.inputText,
-          instructions: data.instructions,
+          instructions: [data.instructions, lengthInstruction].filter(Boolean).join('\n\n'),
+          maxTokens,
           contentSource: data.contentSource,
           styleSource: data.styleSource,
           useContentSource: data.useContentSource,
@@ -291,13 +299,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           case 'deepseek':
             return processTextWithDeepSeek(
               data.inputText,
-              data.instructions,
+              options.instructions,
               data.useContentSource ? data.contentSource : undefined,
               data.useStyleSource ? data.styleSource : undefined,
-              data.examMode
+              data.examMode,
+              Math.min(maxTokens, 8192)
             );
         }
-      });
+      }));
       
       // Return LLM output exactly as received - NO FILTERING OR PROCESSING
       res.json({ result: processedText });
@@ -464,18 +473,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { message, conversationHistory, llmProvider, contextDocument } = chatRequestSchema.parse(req.body);
       
-      const response = await withProviderFallback(llmProvider, 'chat', provider => {
+      const length = requestedWordLength(message);
+      const response = await withProviderFallback(llmProvider, 'chat', provider =>
+        enforceWordLength(length, async lengthInstruction => {
+        const prompt = [message, lengthInstruction].filter(Boolean).join('\n\n');
         switch (provider) {
           case 'openai':
-            return processChatWithOpenAI(message, conversationHistory, contextDocument);
+            return processChatWithOpenAI(prompt, conversationHistory, contextDocument, wordLengthTokenBudget(length));
           case 'anthropic':
-            return processChatWithAnthropic(message, conversationHistory, contextDocument);
+            return processChatWithAnthropic(prompt, conversationHistory, contextDocument, wordLengthTokenBudget(length));
           case 'perplexity':
-            return processChatWithPerplexity(message, conversationHistory, contextDocument);
+            return processChatWithPerplexity(prompt, conversationHistory, contextDocument, wordLengthTokenBudget(length));
           case 'deepseek':
-            return processChatWithDeepSeek(message, conversationHistory, contextDocument);
+            return processChatWithDeepSeek(prompt, conversationHistory, contextDocument, Math.min(wordLengthTokenBudget(length), 8192));
         }
-      });
+      }));
       
       res.json({ response });
     } catch (error: unknown) {

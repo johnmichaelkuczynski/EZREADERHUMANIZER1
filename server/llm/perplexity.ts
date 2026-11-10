@@ -269,7 +269,7 @@ CRITICAL STYLE TRANSFER INSTRUCTIONS:
 }
 
 // PURE HOMEWORK SOLVER - NO REWRITE LOGIC
-export async function solveHomeworkWithPerplexity(assignment: string): Promise<string> {
+export async function solveHomeworkWithPerplexity(assignment: string, maxTokens = 4000): Promise<string> {
   try {
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
@@ -291,7 +291,7 @@ ${getDollarSignFreePrompt()}`
             content: `Please solve the following assignment completely:\n\n${assignment}`
           }
         ],
-        max_tokens: 4000,
+        max_tokens: maxTokens,
         temperature: 0.2,
         stream: false
       })
@@ -352,7 +352,8 @@ function truncatePerplexityHistory(
 export async function processChatWithPerplexity(
   message: string, 
   conversationHistory: Array<{role: 'user' | 'assistant', content: string}>, 
-  contextDocument?: string
+  contextDocument?: string,
+  maxTokens = 4000
 ): Promise<string> {
   let messages: Array<{role: 'user' | 'assistant', content: string}> = [];
   
@@ -409,7 +410,7 @@ export async function processChatWithPerplexity(
           },
           ...messages
         ],
-        max_tokens: 4000,
+        max_tokens: maxTokens,
         temperature: 0.7,
         top_p: 0.9,
         return_images: false,

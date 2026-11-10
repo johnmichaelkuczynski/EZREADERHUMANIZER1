@@ -19,7 +19,7 @@ function getDeepSeekClient(): OpenAI {
 }
 
 // PURE HOMEWORK SOLVER - NO REWRITE LOGIC
-export async function solveHomeworkWithDeepSeek(assignment: string): Promise<string> {
+export async function solveHomeworkWithDeepSeek(assignment: string, maxTokens = 4000): Promise<string> {
   try {
     // Enhance prompt with graphing instructions if needed
     const enhancedPrompt = MathGraphProcessor.enhancePromptForGraphing(
@@ -41,7 +41,7 @@ ${getDollarSignFreePrompt()}`
           content: enhancedPrompt
         }
       ],
-      max_tokens: 4000,
+      max_tokens: maxTokens,
       temperature: 0.7,
     });
     
@@ -196,10 +196,9 @@ export async function processTextWithDeepSeek(
   instructions: string, 
   contentSource?: string, 
   styleSource?: string, 
-  examMode: boolean = false
+  examMode: boolean = false,
+  maxTokens: number = 4000
 ): Promise<string> {
-  
-  const maxTokens = 4000;
   
   // For homework mode, use the homework solver instead
   if (instructions.includes("I am a teacher creating solution keys")) {
@@ -358,7 +357,8 @@ function truncateDeepSeekHistory(
 export async function processChatWithDeepSeek(
   message: string, 
   conversationHistory: Array<{role: 'user' | 'assistant', content: string}>, 
-  contextDocument?: string
+  contextDocument?: string,
+  maxTokens = 4000
 ): Promise<string> {
   let messages: Array<{role: 'system' | 'user' | 'assistant', content: string}> = [
     {
@@ -408,7 +408,7 @@ export async function processChatWithDeepSeek(
     const response = await getDeepSeekClient().chat.completions.create({
       model: "deepseek-chat",
       messages: finalMessages,
-      max_tokens: 4000,
+      max_tokens: maxTokens,
       temperature: 0.7,
     });
 

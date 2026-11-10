@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "-ij6f3F0dSVdP-YaKcGO4"
+uri = "file://generated-artifacts/essay-length-check.txt"
+type = "text"
+title = "Verified 2,039-word test essay"
+description = "Exact essay returned by the live app for a 2,000-word request after word-count enforcement."
+logical_id = "9880f93b-96e2-4bac-93b8-f2c9b6e6e9df"
+content_hash = "sha256:684e4b8227af8903fb5f8745c6b3d5f9e167ebdbc8ba5bb7b4de4a528f8ad636"
+size = 14615
+mtime_ms = 1794328437142
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:7e98e93e-de26-4a30-b450-fe4aea7be1ab/9880f93b-96e2-4bac-93b8-f2c9b6e6e9df/3aea7052-9df2-4eef-898f-969e94ca546c"
+storage_version_token = "1794328446840012"
+content_type = "text/plain"

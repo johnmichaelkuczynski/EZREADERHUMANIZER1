@@ -314,7 +314,7 @@ Style reference (use ONLY as a writing style template - do NOT incorporate its c
 }
 
 // PURE HOMEWORK SOLVER - NO REWRITE LOGIC
-export async function solveHomeworkWithOpenAI(assignment: string): Promise<string> {
+export async function solveHomeworkWithOpenAI(assignment: string, maxTokens = 4000): Promise<string> {
   try {
     // Enhanced prompt with graph generation instructions
     const enhancedPrompt = MathGraphProcessor.enhancePromptForGraphing(
@@ -334,7 +334,7 @@ export async function solveHomeworkWithOpenAI(assignment: string): Promise<strin
           content: `Please solve the following assignment completely:\n\n${assignment}`
         }
       ],
-      max_tokens: 4000,
+      max_tokens: maxTokens,
       temperature: 0.7,
     });
     
@@ -406,7 +406,8 @@ function truncateConversationHistory(
 export async function processChatWithOpenAI(
   message: string, 
   conversationHistory: Array<{role: 'user' | 'assistant', content: string}>, 
-  contextDocument?: string
+  contextDocument?: string,
+  maxTokens = 4000
 ): Promise<string> {
   let messages: Array<{role: 'system' | 'user' | 'assistant', content: string}> = [
     {
@@ -452,7 +453,7 @@ export async function processChatWithOpenAI(
     const response = await getOpenAI().chat.completions.create({
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       messages,
-      max_tokens: 4000,
+      max_tokens: maxTokens,
       temperature: 0.7,
     });
 

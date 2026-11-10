@@ -16,6 +16,10 @@
 !server/**
 !shared/
 !shared/**
+!migrations/
+!migrations/**
+!scripts/
+!scripts/migrate-database.mjs
 !public/
 !public/**
 

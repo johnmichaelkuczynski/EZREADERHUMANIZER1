@@ -82,7 +82,17 @@ npm run dev
 - `npm run build`: Build for production
 - `npm run start`: Start production server
 - `npm run check`: TypeScript type checking
-- `npm run db:push`: Push database schema changes
+- `npm run db:migrate`: Apply committed migrations to the external Neon database
+- `npm run db:verify`: Verify database persistence using isolated test records
+
+### External database and Coolify
+This app is moving to Coolify and uses a user-owned Neon PostgreSQL database.
+The secret name is exactly `DATABASE_URL`, never `NEON_DATABASE_URL`.
+The app's documents, rewrite jobs, and visitors use that connection. Replit
+publishing does not manage its schema. Use reviewed additive SQL migrations
+with `npm run db:migrate`; do not force-push schema changes or reset data.
+See `COOLIFY.md` for the runtime configuration. Secrets saved in Replit are
+not transferred to Coolify and must also be configured securely there.
 
 ## API Endpoints
 

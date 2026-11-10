@@ -21,8 +21,9 @@ ARM64 verification remains a separate check.
 Enter secrets in Coolify's environment-variable settings, never in Git or as
 Docker build arguments.
 
-- `DATABASE_URL`: required at server startup. Keep the existing Neon-compatible
-  database connection; the current database driver uses Neon WebSockets and
+- `DATABASE_URL`: required at server startup. Use the complete connection string
+  for your own external Neon database, including its SSL parameters. Use this
+  exact variable name, not `NEON_DATABASE_URL`. The driver uses Neon WebSockets and
   cannot be pointed at an ordinary PostgreSQL service without a driver change.
 - `SESSION_SECRET`: required for signed visitor cookies.
 - `PUBLIC_SITE_URL`: the final public HTTPS origin, such as
@@ -34,7 +35,22 @@ Docker build arguments.
   `AZURE_OPENAI_ENDPOINT`, and `AZURE_OPENAI_KEY`.
 
 The image requires no secrets to build. Do not expose secret keys to the frontend.
-This Dockerfile neither creates a database nor runs migrations automatically.
+This Dockerfile does not create a database or run migrations automatically.
+The database connection saved in Replit Secrets is not transferred to Coolify:
+enter the same connection string securely as `DATABASE_URL` in Coolify.
+
+## Database tables and migrations
+
+With `DATABASE_URL` configured, run `npm run db:migrate` against your external
+Neon database before starting a new installation. The container includes this
+command and the versioned SQL migrations. It creates `users`, `documents`,
+`rewrite_jobs`, and `visitors`, and records applied migrations so later runs
+do not recreate the tables. Run only one migration process at a time.
+
+This external database is not managed by Replit publishing. Never run a
+destructive schema push to fix a migration error. New changes should use
+reviewed, additive migrations. Existing records from another database or an
+older in-memory server are not automatically imported.
 
 ## After publishing
 
@@ -46,8 +62,11 @@ Tools after verifying ownership.
 
 ## Existing runtime constraints
 
-Rewrite jobs currently live in memory and do not survive a container restart.
-Keep one replica until job storage is made durable.
+Documents, rewrite jobs, and visitors use the database configured in
+`DATABASE_URL`. Saved records survive container restarts. An in-flight AI
+request is not automatically resumed if its container stops; its job record
+remains available, but the work itself must be retried. Keep one replica until
+background job execution and recovery are coordinated.
 
 The runtime retains development dependencies because the existing server bundle
 imports Vite/plugins on startup. It also includes the small PDF fixture used by

@@ -28,6 +28,8 @@ COPY --from=build --chown=node:node /app/package.json ./package.json
 # so do not prune the development dependencies until those imports are separated.
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
+COPY --from=build --chown=node:node /app/migrations ./migrations
+COPY --from=build --chown=node:node /app/scripts/migrate-database.mjs ./scripts/migrate-database.mjs
 
 USER node
 EXPOSE 5000

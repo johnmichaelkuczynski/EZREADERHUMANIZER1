@@ -1,5 +1,5 @@
 # Build this image as linux/arm64 in Coolify.
-FROM node:20-bookworm-slim
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 

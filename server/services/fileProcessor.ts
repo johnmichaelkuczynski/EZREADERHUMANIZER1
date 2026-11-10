@@ -31,7 +31,7 @@ export class FileProcessor {
 
   private async processPDF(buffer: Buffer): Promise<string> {
     try {
-      const pdfParse = await import('pdf-parse');
+      const pdfParse = await import('pdf-parse/lib/pdf-parse.js');
       const data = await pdfParse.default(buffer);
       return data.text;
     } catch (error) {
@@ -93,7 +93,7 @@ export class FileProcessor {
     try {
       // For now, return a placeholder since pdf-parse requires additional setup
       // In production, would use pdf-parse library
-      const pdfParse = await import('pdf-parse');
+      const pdfParse = await import('pdf-parse/lib/pdf-parse.js');
       const dataBuffer = fs.readFileSync(filePath);
       const data = await pdfParse.default(dataBuffer);
       return data.text;

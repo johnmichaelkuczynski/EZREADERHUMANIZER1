@@ -24,14 +24,12 @@ export function getSiteOrigin(req: Request): string {
   }
 
   const requestedHost = req.get("host") || "";
-  const hostname = requestedHost.split(":")[0].toLowerCase();
-  const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
-  const isReplitHost = hostname.endsWith(".replit.dev") || hostname.endsWith(".replit.app");
-
-  if (!isLocal && !isReplitHost) {
-    return "https://localhost.invalid";
+  if (!/^[a-z0-9.-]+(?::\d+)?$/i.test(requestedHost)) {
+    return "http://localhost:5000";
   }
 
-  const protocol = isLocal && req.protocol === "http" ? "http" : "https";
+  // Request-derived origins are only used in development. Production always
+  // uses the configured public origin, independent of proxy/Host headers.
+  const protocol = req.secure ? "https" : "http";
   return `${protocol}://${requestedHost}`;
 }

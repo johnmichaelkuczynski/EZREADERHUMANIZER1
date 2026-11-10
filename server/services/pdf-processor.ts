@@ -1,4 +1,5 @@
-import pdfParse from 'pdf-parse';
+// The package root runs its debug fixture under Node ESM; use the library directly.
+import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 
 /**
  * Convert common mathematical expressions to LaTeX format

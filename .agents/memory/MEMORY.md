@@ -1,1 +1,2 @@
 - [Silent LLM fallback policy](llm-fallback-policy.md) — selected ZHI first, then silent cascade; provider failures never appear in the UI.
+- [Production serving verification](production-serving-verification.md) — a passing homepage probe does not prove the published app serves compiled assets.

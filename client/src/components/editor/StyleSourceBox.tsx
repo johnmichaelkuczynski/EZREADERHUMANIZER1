@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { writeClipboardText } from "@/lib/clipboard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -110,7 +111,7 @@ export function StyleSourceBox({
 
   const copyToClipboard = async (content: string) => {
     try {
-      await navigator.clipboard.writeText(content);
+      await writeClipboardText(content);
       toast({
         title: "Copied to clipboard",
         description: "Style source content copied successfully",

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { writeClipboardText } from "@/lib/clipboard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -413,7 +414,7 @@ export function GPTBypassInterface({ onSendToInput, onSendToOutput, inputFromMai
 
   const copyToClipboard = async (text: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      await writeClipboardText(text);
       toast({
         title: "Copied to clipboard",
         description: "Text has been copied to your clipboard",

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { writeClipboardText } from '@/lib/clipboard';
 import { exportToPDF, exportToDOCX } from '@/lib/file-utils';
 import { useToast } from '@/hooks/use-toast';
 import { sendEmail } from '@/lib/api';
@@ -20,7 +21,7 @@ export function useFileOperations() {
     }
     
     try {
-      await navigator.clipboard.writeText(text);
+      await writeClipboardText(text);
       toast({
         title: "Copied to clipboard",
         description: "Text copied successfully.",
